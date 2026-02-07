@@ -15,7 +15,6 @@
             overflow: hidden;
             touch-action: manipulation;
             height: 100dvh;
-            position: fixed;
             width: 100%;
         }
         .kanji-font { font-family: 'Noto Serif JP', serif; }
@@ -48,17 +47,21 @@
         }
         @keyframes blink { 50% { opacity: 0; } }
 
-        .key-btn {
-            box-shadow: 0 3px 0 #374151;
-            transition: all 0.08s;
-            user-select: none;
-            -webkit-user-select: none;
+        /* Native input styling */
+        #game-input {
+            caret-color: #4ade80;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: transparent;
+            font-size: 16px; /* Prevents iOS zoom on focus */
+            width: 1px;
+            height: 1px;
+            position: absolute;
+            opacity: 0;
         }
-        .key-btn:active, .key-btn.active {
-            transform: translateY(3px);
-            box-shadow: 0 0 0 #374151;
-            background-color: #3b82f6;
-        }
+        /* Tap target for focusing input on mobile */
+        .tap-target { cursor: text; }
 
         /* Difficulty meter */
         .diff-bar { transition: width 0.5s ease, background-color 0.5s ease; }
@@ -91,7 +94,7 @@
     </div>
 
     <!-- Main Game Area -->
-    <div id="game-container" class="flex-1 flex flex-col justify-center items-center w-full max-w-lg px-4 min-h-0 overflow-hidden">
+    <div id="game-container" class="flex-1 flex flex-col justify-center items-center w-full max-w-lg px-4 min-h-0 overflow-hidden tap-target">
 
         <!-- Kanji Card -->
         <div class="relative w-full max-w-[240px] md:max-w-[300px] aspect-square flex items-center justify-center bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 mb-2 animate-pop shrink-0">
@@ -121,11 +124,8 @@
         <p id="status-message" class="h-5 text-xs text-gray-500 font-medium shrink-0">Type the reading</p>
     </div>
 
-    <!-- Virtual Keyboard (Mobile) -->
-    <div id="virtual-keyboard" class="w-full max-w-2xl px-1 pb-2 md:hidden shrink-0"></div>
-
-    <!-- Invisible focus trap for desktop (inputmode none prevents mobile keyboard) -->
-    <input type="text" id="hidden-input" inputmode="none" class="absolute opacity-0 top-0 left-0 h-0 w-0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly>
+    <!-- Native text input (hidden visually but receives focus for keyboard) -->
+    <input type="text" id="game-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="latin" enterkeyhint="next">
 
     <script>
     // =============================================
@@ -433,7 +433,7 @@
         {k:'珍しい',r:'mezurashii',m:'rare',l:4},
         {k:'素晴らしい',r:'subarashii',m:'wonderful',l:4},
         {k:'正しい',r:'tadashii',m:'correct',l:4},
-        {k:'危ない',r:'abunai',m:'dangerous',l:4},
+        {k:'危ない',r:'abunai',m:'dangerous',l:5},
         {k:'汚い',r:'kitanai',m:'dirty',l:4},
         {k:'柔らかい',r:'yawarakai',m:'soft',l:4},
         {k:'固い',r:'katai',m:'hard',l:4},
@@ -489,35 +489,35 @@
         {k:'危険',r:'kiken',m:'danger',l:4},
         {k:'健康',r:'kenkou',m:'health',l:4},
         {k:'生活',r:'seikatsu',m:'daily life',l:4},
-        {k:'習慣',r:'shuukan',m:'habit',l:4},
+        {k:'習慣',r:'shuukan',m:'habit',l:3},
         {k:'気持ち',r:'kimochi',m:'feeling',l:4},
         {k:'気分',r:'kibun',m:'mood',l:4},
-        {k:'性格',r:'seikaku',m:'personality',l:4},
-        {k:'態度',r:'taido',m:'attitude',l:4},
-        {k:'関係',r:'kankei',m:'relationship',l:4},
+        {k:'性格',r:'seikaku',m:'personality',l:3},
+        {k:'態度',r:'taido',m:'attitude',l:3},
+        {k:'関係',r:'kankei',m:'relationship',l:3},
         {k:'約束',r:'yakusoku',m:'promise',l:4},
         {k:'挨拶',r:'aisatsu',m:'greeting',l:4},
         {k:'返事',r:'henji',m:'reply',l:4},
         {k:'連絡',r:'renraku',m:'contact',l:4},
         {k:'相談',r:'soudan',m:'consultation',l:4},
-        {k:'会議',r:'kaigi',m:'meeting',l:4},
-        {k:'発表',r:'happyou',m:'presentation',l:4},
-        {k:'報告',r:'houkoku',m:'report',l:4},
+        {k:'会議',r:'kaigi',m:'meeting',l:3},
+        {k:'発表',r:'happyou',m:'presentation',l:3},
+        {k:'報告',r:'houkoku',m:'report',l:3},
         {k:'説明',r:'setsumei',m:'explanation',l:4},
         {k:'注意',r:'chuui',m:'caution',l:4},
         {k:'興味',r:'kyoumi',m:'interest',l:4},
-        {k:'経験',r:'keiken',m:'experience',l:4},
-        {k:'記憶',r:'kioku',m:'memory',l:4},
-        {k:'想像',r:'souzou',m:'imagination',l:4},
-        {k:'感想',r:'kansou',m:'impression',l:4},
-        {k:'感動',r:'kandou',m:'emotion',l:4},
-        {k:'努力',r:'doryoku',m:'effort',l:4},
-        {k:'成功',r:'seikou',m:'success',l:4},
-        {k:'失敗',r:'shippai',m:'failure',l:4},
-        {k:'目的',r:'mokuteki',m:'purpose',l:4},
-        {k:'目標',r:'mokuhyou',m:'goal',l:4},
-        {k:'方法',r:'houhou',m:'method',l:4},
-        {k:'規則',r:'kisoku',m:'rule',l:4},
+        {k:'経験',r:'keiken',m:'experience',l:3},
+        {k:'記憶',r:'kioku',m:'memory',l:3},
+        {k:'想像',r:'souzou',m:'imagination',l:3},
+        {k:'感想',r:'kansou',m:'impression',l:3},
+        {k:'感動',r:'kandou',m:'emotion',l:3},
+        {k:'努力',r:'doryoku',m:'effort',l:3},
+        {k:'成功',r:'seikou',m:'success',l:3},
+        {k:'失敗',r:'shippai',m:'failure',l:3},
+        {k:'目的',r:'mokuteki',m:'purpose',l:3},
+        {k:'目標',r:'mokuhyou',m:'goal',l:3},
+        {k:'方法',r:'houhou',m:'method',l:3},
+        {k:'規則',r:'kisoku',m:'rule',l:3},
         {k:'交通',r:'koutsuu',m:'traffic',l:4},
         {k:'信号',r:'shingou',m:'traffic light',l:4},
         {k:'交差点',r:'kousaten',m:'intersection',l:4},
@@ -559,7 +559,7 @@
         {k:'丁寧',r:'teinei',m:'polite',l:4},
         {k:'熱心',r:'nesshin',m:'enthusiastic',l:4},
         {k:'心配',r:'shinpai',m:'worry',l:4},
-        {k:'迷惑',r:'meiwaku',m:'nuisance',l:4},
+        {k:'迷惑',r:'meiwaku',m:'nuisance',l:3},
         {k:'遠慮',r:'enryo',m:'reserve',l:4},
         {k:'我慢',r:'gaman',m:'patience',l:4},
         {k:'無理',r:'muri',m:'impossible',l:4},
@@ -596,7 +596,7 @@
         // ──────────────── N3 (Level 3) — ~250 words ────────────────
         // Verbs
         {k:'応じる',r:'oujiru',m:'to respond',l:3},
-        {k:'感じる',r:'kanjiru',m:'to feel',l:3},
+        {k:'感じる',r:'kanjiru',m:'to feel',l:4},
         {k:'生じる',r:'shoujiru',m:'to occur',l:3},
         {k:'通じる',r:'tsuujiru',m:'to communicate',l:3},
         {k:'信じる',r:'shinjiru',m:'to believe',l:3},
@@ -609,8 +609,8 @@
         {k:'示す',r:'shimesu',m:'to indicate',l:3},
         {k:'表す',r:'arawasu',m:'to express',l:3},
         {k:'現れる',r:'arawareru',m:'to appear',l:3},
-        {k:'消える',r:'kieru',m:'to disappear',l:3},
-        {k:'増える',r:'fueru',m:'to increase',l:3},
+        {k:'消える',r:'kieru',m:'to disappear',l:4},
+        {k:'増える',r:'fueru',m:'to increase',l:4},
         {k:'減る',r:'heru',m:'to decrease',l:3},
         {k:'増やす',r:'fuyasu',m:'to increase something',l:3},
         {k:'減らす',r:'herasu',m:'to reduce',l:3},
@@ -666,7 +666,7 @@
         {k:'結ぶ',r:'musubu',m:'to tie',l:3},
         {k:'解く',r:'toku',m:'to untie',l:3},
         // Adjectives & Adverbs
-        {k:'複雑',r:'fukuzatsu',m:'complicated',l:3},
+        {k:'複雑',r:'fukuzatsu',m:'complicated',l:4},
         {k:'単純',r:'tanjun',m:'simple',l:3},
         {k:'豊富',r:'houfu',m:'abundant',l:3},
         {k:'貧乏',r:'binbou',m:'poor',l:3},
@@ -705,7 +705,7 @@
         {k:'作家',r:'sakka',m:'author',l:3},
         {k:'画家',r:'gaka',m:'painter',l:3},
         {k:'芸術',r:'geijutsu',m:'art',l:3},
-        {k:'技術',r:'gijutsu',m:'technology',l:3},
+        {k:'技術',r:'gijutsu',m:'technology',l:4},
         {k:'情報',r:'jouhou',m:'information',l:3},
         {k:'通信',r:'tsuushin',m:'communication',l:3},
         {k:'放送',r:'housou',m:'broadcast',l:3},
@@ -793,7 +793,7 @@
         {k:'症状',r:'shoujou',m:'symptom',l:3},
         {k:'治療',r:'chiryou',m:'treatment',l:3},
         {k:'手術',r:'shujutsu',m:'surgery',l:3},
-        {k:'注射',r:'chuusha',m:'injection',l:3},
+        {k:'注射',r:'chuusha',m:'injection',l:4},
         {k:'薬',r:'kusuri',m:'medicine',l:3},
         {k:'患者',r:'kanja',m:'patient',l:3},
         {k:'看護',r:'kango',m:'nursing',l:3},
@@ -890,7 +890,7 @@
         {k:'基盤',r:'kiban',m:'foundation',l:2},
         {k:'範囲',r:'hani',m:'scope',l:2},
         {k:'領域',r:'ryouiki',m:'domain',l:2},
-        {k:'分野',r:'bunya',m:'field',l:2},
+        {k:'分野',r:'bunya',m:'field',l:3},
         {k:'側面',r:'sokumen',m:'aspect',l:2},
         {k:'視点',r:'shiten',m:'viewpoint',l:2},
         {k:'観点',r:'kanten',m:'perspective',l:2},
@@ -980,7 +980,7 @@
         {k:'認識',r:'ninshiki',m:'recognition',l:2},
         {k:'判断',r:'handan',m:'judgment',l:2},
         {k:'評価',r:'hyouka',m:'evaluation',l:2},
-        {k:'分析',r:'bunseki',m:'analysis',l:2},
+        {k:'分析',r:'bunseki',m:'analysis',l:3},
         {k:'検討',r:'kentou',m:'examination',l:2},
         {k:'研究',r:'kenkyuu',m:'research',l:2},
         {k:'調査',r:'chousa',m:'survey',l:2},
@@ -1217,8 +1217,7 @@
         difficulty: 5.0,
         // Track every word shown during current streak (no repeats)
         streakWords: new Set(),
-        isTransitioning: false,
-        isMobile: false
+        isTransitioning: false
     };
 
     // =============================================
@@ -1238,84 +1237,52 @@
         diffBar: document.getElementById('diff-bar'),
         inputBox: document.getElementById('input-feedback-box'),
         status: document.getElementById('status-message'),
-        keyboard: document.getElementById('virtual-keyboard'),
-        hiddenInput: document.getElementById('hidden-input')
+        gameInput: document.getElementById('game-input'),
+        gameContainer: document.getElementById('game-container')
     };
 
     // =============================================
-    // MOBILE DETECTION & KEYBOARD SETUP
+    // NATIVE KEYBOARD INPUT HANDLING
     // =============================================
-    function detectMobile() {
-        state.isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.innerWidth < 768;
-    }
-    detectMobile();
-    window.addEventListener('resize', detectMobile);
 
-    const kbRows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+    // Focus the input when tapping anywhere on the game area
+    els.gameContainer.addEventListener('click', () => els.gameInput.focus());
+    document.body.addEventListener('click', () => els.gameInput.focus());
 
-    function initKeyboard() {
-        els.keyboard.innerHTML = '';
-        kbRows.forEach((row, ri) => {
-            const rowDiv = document.createElement('div');
-            rowDiv.className = 'flex justify-center w-full gap-[3px] mb-[3px]';
-            // Add left spacer on middle & bottom rows for stagger
-            if (ri === 1) {
-                const sp = document.createElement('div');
-                sp.className = 'w-[2%] shrink-0';
-                rowDiv.appendChild(sp);
-            }
-            if (ri === 2) {
-                const sp = document.createElement('div');
-                sp.className = 'w-[5%] shrink-0';
-                rowDiv.appendChild(sp);
-            }
-            row.split('').forEach(ch => {
-                const btn = document.createElement('button');
-                btn.textContent = ch;
-                btn.dataset.key = ch;
-                btn.className = 'key-btn bg-gray-700 text-white font-bold rounded-md flex-1 text-base uppercase select-none focus:outline-none touch-manipulation leading-none py-[10px]';
-                btn.style.maxWidth = '10%';
-                btn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
+    // Handle native keyboard input (works on both mobile and desktop)
+    els.gameInput.addEventListener('input', (e) => {
+        const val = els.gameInput.value;
+        if (val.length > 0) {
+            // Process each new character
+            for (const ch of val) {
+                if (/[a-zA-Z]/.test(ch)) {
                     handleInput(ch);
-                    btn.classList.add('active');
-                    setTimeout(() => btn.classList.remove('active'), 120);
-                });
-                btn.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    handleInput(ch);
-                });
-                rowDiv.appendChild(btn);
-            });
-            if (ri === 2) {
-                const sp = document.createElement('div');
-                sp.className = 'w-[5%] shrink-0';
-                rowDiv.appendChild(sp);
+                }
             }
-            if (ri === 1) {
-                const sp = document.createElement('div');
-                sp.className = 'w-[2%] shrink-0';
-                rowDiv.appendChild(sp);
-            }
-            els.keyboard.appendChild(rowDiv);
-        });
-    }
-
-    // Prevent system keyboard on mobile
-    document.body.addEventListener('touchstart', (e) => {
-        // Don't focus hidden input on mobile
-        if (state.isMobile) {
-            e.target.blur();
-            document.activeElement?.blur();
-        }
-    }, { passive: true });
-
-    // Prevent any input from gaining focus on mobile
-    document.addEventListener('focusin', (e) => {
-        if (state.isMobile && e.target === els.hiddenInput) {
-            e.target.blur();
+            // Always clear — the game display shows progress, not the input
+            els.gameInput.value = '';
         }
     });
+
+    // Also handle keydown for desktop (instant response, no input lag)
+    document.addEventListener('keydown', (e) => {
+        if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+            // Prevent the input event from double-processing on desktop
+            if (document.activeElement === els.gameInput) return;
+            handleInput(e.key);
+        }
+    });
+
+    // Handle viewport resize when mobile keyboard opens/closes
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            // Adjust body height to visible viewport (above keyboard)
+            document.body.style.height = window.visualViewport.height + 'px';
+        });
+        window.visualViewport.addEventListener('scroll', () => {
+            document.body.style.height = window.visualViewport.height + 'px';
+        });
+    }
 
     // =============================================
     // ADAPTIVE DIFFICULTY
@@ -1428,6 +1395,10 @@
         els.inputBox.classList.add('border-gray-600');
         els.status.textContent = 'Type the reading';
         els.status.className = 'h-5 text-xs text-gray-500 font-medium';
+
+        // Refocus input for native keyboard
+        els.gameInput.value = '';
+        els.gameInput.focus();
     }
 
     function renderInput() {
@@ -1538,32 +1509,12 @@
     }
 
     // =============================================
-    // EVENT LISTENERS
-    // =============================================
-    document.addEventListener('keydown', (e) => {
-        if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
-            handleInput(e.key);
-            // Highlight virtual key if visible
-            const vk = document.querySelector(`[data-key="${e.key.toLowerCase()}"]`);
-            if (vk) {
-                vk.classList.add('active');
-                setTimeout(() => vk.classList.remove('active'), 120);
-            }
-        }
-    });
-
-    // Desktop: focus hidden input for key capture (only if not mobile)
-    if (!state.isMobile) {
-        document.body.addEventListener('click', () => els.hiddenInput.focus());
-    }
-
-    // =============================================
     // INIT
     // =============================================
-    initKeyboard();
     updateDifficultyDisplay();
     loadWord();
-    if (!state.isMobile) els.hiddenInput.focus();
+    // Focus input after a brief delay (helps on mobile)
+    setTimeout(() => els.gameInput.focus(), 300);
 
     console.log(`Kanji Flow loaded: ${wordDatabase.length} words across N5–N1`);
     </script>
