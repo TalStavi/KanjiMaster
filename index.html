@@ -1224,8 +1224,8 @@
     const state = {
         currentWord: null,
         inputBuffer: '',
-        mistakesOnChar: 0,  // mistakes on the current character
-        hintsUsed: 0,       // how many different letters needed a hint
+        mistakesOnChar: 0,  // mistakes on the current character (for hints)
+        mistakesOnWord: 0,  // total mistakes across the whole word (for fail)
         streak: 0,
         bestStreak: 0,
         score: 0,
@@ -1385,7 +1385,7 @@
         state.currentWord = word;
         state.inputBuffer = '';
         state.mistakesOnChar = 0;
-        state.hintsUsed = 0;
+        state.mistakesOnWord = 0;
         state.isTransitioning = false;
         state.streakWords.add(word.k);
 
@@ -1454,14 +1454,15 @@
             }
         } else {
             state.mistakesOnChar++;
+            state.mistakesOnWord++;
             triggerShake();
 
-            // After 2 wrong guesses on a character: show hint (streak safe)
-            // After 3 wrong guesses on a character: fail and move on
-            if (state.mistakesOnChar >= 3) {
-                state.mistakesOnChar = 0;
+            // 3 total mistakes anywhere in the word → fail
+            if (state.mistakesOnWord >= 3) {
                 handleFail();
-            } else if (state.mistakesOnChar >= 2) {
+            }
+            // 2 mistakes on the same letter → show hint
+            else if (state.mistakesOnChar >= 2) {
                 showHint();
             }
         }
