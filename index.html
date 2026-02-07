@@ -23,14 +23,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@700&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            overflow: hidden;
+            overscroll-behavior: none;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            touch-action: manipulation;
+        }
         body {
             font-family: 'Nunito', sans-serif;
             background-color: #1a1a1a;
             color: #e5e5e5;
-            overflow: hidden;
-            touch-action: manipulation;
-            height: 100dvh;
-            width: 100%;
         }
         .kanji-font { font-family: 'Noto Serif JP', serif; }
         .jp-font { font-family: 'Noto Sans JP', sans-serif; }
@@ -1275,11 +1280,13 @@
         activeInputIdx = 1 - activeInputIdx;
         const next = els.inputs[activeInputIdx];
         next.value = '';
-        next.focus();
+        next.focus({ preventScroll: true });
+        // Reset any accidental scroll
+        window.scrollTo(0, 0);
     }
 
     function focusActiveInput() {
-        els.inputs[activeInputIdx].focus();
+        els.inputs[activeInputIdx].focus({ preventScroll: true });
     }
 
     // Wire up input events on both inputs
@@ -1308,14 +1315,24 @@
     });
 
     // Handle viewport resize when mobile keyboard opens/closes
-    if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', () => {
-            document.body.style.height = window.visualViewport.height + 'px';
-        });
-        window.visualViewport.addEventListener('scroll', () => {
-            document.body.style.height = window.visualViewport.height + 'px';
-        });
+    function lockViewport() {
+        const h = window.visualViewport.height + 'px';
+        document.documentElement.style.height = h;
+        document.body.style.height = h;
+        // Pin scroll to top — prevents any drift when keyboard opens/closes
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
     }
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', lockViewport);
+        window.visualViewport.addEventListener('scroll', lockViewport);
+    }
+
+    // Block all touch-scroll gestures on the page
+    document.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+    }, { passive: false });
 
     // =============================================
     // ADAPTIVE DIFFICULTY
