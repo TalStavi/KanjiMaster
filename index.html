@@ -62,6 +62,21 @@
         }
         @keyframes blink { 50% { opacity: 0; } }
 
+        /* Hidden inputs for native keyboard */
+        .game-inp {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            font-size: 16px; /* prevents iOS zoom */
+            border: none;
+            outline: none;
+            background: transparent;
+            color: transparent;
+            caret-color: transparent;
+        }
         /* Tap target for focusing input on mobile */
         .tap-target { cursor: text; }
 
@@ -126,8 +141,9 @@
         <p id="status-message" class="h-5 text-xs text-gray-500 font-medium shrink-0">Type the reading</p>
     </div>
 
-    <!-- Container for native text input — input is recreated each word to reset keyboard prediction -->
-    <div id="input-container"></div>
+    <!-- Two hidden inputs — swapped each word to reset keyboard prediction without flicker -->
+    <input type="text" id="game-input-a" class="game-inp" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="latin" enterkeyhint="next">
+    <input type="text" id="game-input-b" class="game-inp" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="latin" enterkeyhint="next">
 
     <script>
     // =============================================
@@ -1240,33 +1256,34 @@
         diffBar: document.getElementById('diff-bar'),
         inputBox: document.getElementById('input-feedback-box'),
         status: document.getElementById('status-message'),
-        inputContainer: document.getElementById('input-container'),
+        inputs: [document.getElementById('game-input-a'), document.getElementById('game-input-b')],
         gameContainer: document.getElementById('game-container')
     };
 
     // =============================================
-    // NATIVE KEYBOARD INPUT HANDLING
+    // NATIVE KEYBOARD INPUT HANDLING (two-input swap)
     // =============================================
+    let activeInputIdx = 1; // starts at 1 so first swapInput() lands on 0
 
-    // Create a fresh input element (resets keyboard prediction completely)
-    function createFreshInput() {
-        els.inputContainer.innerHTML = '';
-        const inp = document.createElement('input');
-        inp.type = 'text';
-        inp.id = 'game-input';
-        inp.autocomplete = 'off';
-        inp.autocorrect = 'off';
-        inp.autocapitalize = 'off';
-        inp.spellcheck = false;
-        inp.setAttribute('inputmode', 'latin');
-        inp.setAttribute('enterkeyhint', 'next');
-        // Style: invisible but focusable
-        Object.assign(inp.style, {
-            caretColor: '#4ade80', background: 'transparent', border: 'none',
-            outline: 'none', color: 'transparent', fontSize: '16px',
-            width: '1px', height: '1px', position: 'absolute', opacity: '0'
-        });
-        // Listen for input
+    function getActiveInput() { return els.inputs[activeInputIdx]; }
+
+    // Swap to the other input — resets keyboard prediction without DOM churn
+    function swapInput() {
+        const old = els.inputs[activeInputIdx];
+        old.value = '';
+        old.blur();
+        activeInputIdx = 1 - activeInputIdx;
+        const next = els.inputs[activeInputIdx];
+        next.value = '';
+        next.focus();
+    }
+
+    function focusActiveInput() {
+        els.inputs[activeInputIdx].focus();
+    }
+
+    // Wire up input events on both inputs
+    els.inputs.forEach(inp => {
         inp.addEventListener('input', () => {
             const val = inp.value;
             if (val.length > 0) {
@@ -1276,19 +1293,16 @@
                 inp.value = '';
             }
         });
-        els.inputContainer.appendChild(inp);
-        els.gameInput = inp;
-        return inp;
-    }
+    });
 
-    // Focus the input when tapping anywhere
-    els.gameContainer.addEventListener('click', () => els.gameInput && els.gameInput.focus());
-    document.body.addEventListener('click', () => els.gameInput && els.gameInput.focus());
+    // Focus active input when tapping anywhere
+    els.gameContainer.addEventListener('click', focusActiveInput);
+    document.body.addEventListener('click', focusActiveInput);
 
     // Desktop keyboard (instant, no input event lag)
     document.addEventListener('keydown', (e) => {
         if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
-            if (document.activeElement === els.gameInput) return;
+            if (document.activeElement === els.inputs[0] || document.activeElement === els.inputs[1]) return;
             handleInput(e.key);
         }
     });
@@ -1302,9 +1316,6 @@
             document.body.style.height = window.visualViewport.height + 'px';
         });
     }
-
-    // Create the first input
-    createFreshInput();
 
     // =============================================
     // ADAPTIVE DIFFICULTY
@@ -1420,9 +1431,8 @@
         els.status.textContent = 'Type the reading';
         els.status.className = 'h-5 text-xs text-gray-500 font-medium';
 
-        // Recreate input to fully reset keyboard prediction, then focus
-        const inp = createFreshInput();
-        setTimeout(() => inp.focus(), 50);
+        // Swap to the other input to reset keyboard prediction
+        swapInput();
     }
 
     function renderInput() {
