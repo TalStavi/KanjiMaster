@@ -21,6 +21,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Stamp index.html with a unique build version so browsers bust cache
+      - name: Cache-bust version stamp
+        run: |
+          BUILD_ID=$(date +%s)
+          sed -i "s/const APP_VERSION = '[^']*'/const APP_VERSION = '${BUILD_ID}'/" index.html
+
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v3
         with:
