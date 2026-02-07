@@ -1507,26 +1507,26 @@
     // =============================================
     function getDifficultyLevel() {
         // Returns the JLPT level to target (integer 1-5)
-        return Math.max(1, Math.min(5, Math.round(state.difficulty)));
+        // Using ceil: you stay at N5 until difficulty drops below 4.0
+        return Math.max(1, Math.min(5, Math.ceil(state.difficulty)));
     }
 
     function makeDifficultyHarder() {
-        // Gradually increase difficulty (lower number = harder)
-        state.difficulty = Math.max(1.0, state.difficulty - 0.4);
+        // Gradual: ~33 correct words to advance one full level
+        state.difficulty = Math.max(1.0, state.difficulty - 0.15);
         updateDifficultyDisplay();
     }
 
     function makeDifficultyEasier() {
-        // Jump back easier
-        state.difficulty = Math.min(5.0, state.difficulty + 1.0);
+        // Drop back half a level on failure
+        state.difficulty = Math.min(5.0, state.difficulty + 0.5);
         updateDifficultyDisplay();
     }
 
     function updateDifficultyDisplay() {
         const pct = ((5.0 - state.difficulty) / 4.0) * 100;
         els.diffBar.style.width = pct + '%';
-        const lvl = getDifficultyLevel();
-        els.badge.textContent = 'N' + lvl;
+        // Badge is set by loadWord() to show the actual word's level
 
         if (pct < 25) { els.diffBar.className = 'diff-bar h-full bg-green-500 rounded-full'; }
         else if (pct < 50) { els.diffBar.className = 'diff-bar h-full bg-blue-500 rounded-full'; }
@@ -1538,22 +1538,31 @@
     // WORD SELECTION (no repeats during streak)
     // =============================================
     function pickWord() {
-        const targetLvl = getDifficultyLevel();
-        // Harder adjacent level (lower number = harder JLPT)
-        const harderLvl = targetLvl - 1;
+        const d = state.difficulty;
+        const mainLvl = getDifficultyLevel(); // current "home" level (ceil)
+        const harderLvl = mainLvl - 1;
 
-        // Build pool: target level + a few harder words (never easier)
-        let pool = wordDatabase.filter(w => w.l === targetLvl || w.l === harderLvl);
+        // How far into this level? 0 = just arrived, ~1 = about to advance
+        // e.g. d=4.8 → progress=0.2, d=4.2 → progress=0.8
+        const progress = mainLvl - d;
 
-        // If at N5 (easiest), only N5 words
-        if (targetLvl === 5) pool = wordDatabase.filter(w => w.l === 5);
+        // Only start mixing harder words after 60% progress into current level
+        // This means pure N5 for the first ~20 correct words, then gradually N4 appears
+        const mixRatio = (harderLvl >= 1) ? Math.max(0, (progress - 0.6) / 0.4) : 0;
 
-        // Weight: target level 4x, harder level 1x
+        // Build weighted pool with smooth blending
         let weighted = [];
-        pool.forEach(w => {
-            const weight = (w.l === targetLvl) ? 4 : 1;
-            for (let i = 0; i < weight; i++) weighted.push(w);
-        });
+        const mainWords = wordDatabase.filter(w => w.l === mainLvl);
+        const hardWords = (harderLvl >= 1) ? wordDatabase.filter(w => w.l === harderLvl) : [];
+
+        // Main level always present; harder level gradually mixed in
+        const mainWeight = Math.max(1, Math.round((1 - mixRatio) * 10));
+        const hardWeight = Math.round(mixRatio * 10);
+
+        mainWords.forEach(w => { for (let i = 0; i < mainWeight; i++) weighted.push(w); });
+        if (hardWeight > 0) {
+            hardWords.forEach(w => { for (let i = 0; i < hardWeight; i++) weighted.push(w); });
+        }
 
         // Remove words already seen in this streak
         let filtered = weighted.filter(w => !state.streakWords.has(w.k));
