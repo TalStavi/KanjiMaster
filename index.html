@@ -7,503 +7,1565 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@700&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
             font-family: 'Nunito', sans-serif;
             background-color: #1a1a1a;
             color: #e5e5e5;
-            overflow: hidden; /* Prevent scrolling on mobile */
+            overflow: hidden;
             touch-action: manipulation;
+            height: 100dvh;
+            position: fixed;
+            width: 100%;
         }
-        .kanji-font {
-            font-family: 'Noto Serif JP', serif;
-        }
-        .jp-font {
-            font-family: 'Noto Sans JP', sans-serif;
-        }
-        
-        /* Custom Animations */
+        .kanji-font { font-family: 'Noto Serif JP', serif; }
+        .jp-font { font-family: 'Noto Sans JP', sans-serif; }
+
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-5px); }
             75% { transform: translateX(5px); }
         }
-        .animate-shake {
-            animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
-        }
+        .animate-shake { animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
 
         @keyframes pop {
-            0% { transform: scale(0.95); opacity: 0; }
+            0% { transform: scale(0.9); opacity: 0; }
             50% { transform: scale(1.05); }
             100% { transform: scale(1); opacity: 1; }
         }
-        .animate-pop {
-            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
+        .animate-pop { animation: pop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 
         @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
+            from { transform: translateY(10px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
-        .animate-slide-up {
-            animation: slideUp 0.5s ease-out forwards;
-        }
+        .animate-slide-up { animation: slideUp 0.4s ease-out forwards; }
 
-        /* Cursor blinking */
         .cursor {
-            display: inline-block;
-            width: 2px;
-            height: 1.2em;
-            background-color: #4ade80;
-            margin-left: 2px;
-            vertical-align: middle;
-            animation: blink 1s step-end infinite;
+            display: inline-block; width: 2px; height: 1.2em;
+            background-color: #4ade80; margin-left: 2px;
+            vertical-align: middle; animation: blink 1s step-end infinite;
         }
-        @keyframes blink {
-            50% { opacity: 0; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .key-btn {
+            box-shadow: 0 3px 0 #374151;
+            transition: all 0.08s;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .key-btn:active, .key-btn.active {
+            transform: translateY(3px);
+            box-shadow: 0 0 0 #374151;
+            background-color: #3b82f6;
         }
 
-        /* Virtual Keyboard Keys */
-        .key-btn {
-            box-shadow: 0 4px 0 #374151;
-            transition: all 0.1s;
-        }
-        .key-btn:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 #374151;
-        }
+        /* Difficulty meter */
+        .diff-bar { transition: width 0.5s ease, background-color 0.5s ease; }
     </style>
 </head>
-<body class="h-screen flex flex-col items-center justify-between p-4 bg-gradient-to-b from-gray-900 to-gray-800">
+<body class="flex flex-col items-center bg-gradient-to-b from-gray-900 to-gray-800">
 
-    <!-- Header / Stats -->
-    <div class="w-full max-w-2xl flex justify-between items-center mb-4 z-10">
+    <!-- Header -->
+    <div class="w-full max-w-2xl flex justify-between items-center px-4 pt-3 pb-1 z-10 shrink-0">
         <div class="flex items-center space-x-2">
-            <span class="text-xs font-bold tracking-widest text-gray-500 uppercase">Level</span>
-            <span id="level-badge" class="px-2 py-1 bg-blue-600 rounded text-xs font-bold text-white">N5</span>
+            <span id="level-badge" class="px-2 py-0.5 bg-blue-600 rounded text-xs font-bold text-white">N5</span>
+            <div class="w-20 h-1.5 bg-gray-700 rounded-full overflow-hidden" title="Difficulty">
+                <div id="diff-bar" class="diff-bar h-full bg-green-500 rounded-full" style="width:20%"></div>
+            </div>
         </div>
         <div class="flex items-center space-x-4">
             <div class="text-center">
-                <p class="text-xs text-gray-500 uppercase">Streak</p>
-                <p id="streak-counter" class="text-xl font-bold text-green-400">0</p>
+                <p class="text-[10px] text-gray-500 uppercase leading-none">Streak</p>
+                <p id="streak-counter" class="text-lg font-bold text-green-400 leading-tight">0</p>
             </div>
             <div class="text-center">
-                <p class="text-xs text-gray-500 uppercase">Score</p>
-                <p id="score-counter" class="text-xl font-bold text-white">0</p>
+                <p class="text-[10px] text-gray-500 uppercase leading-none">Score</p>
+                <p id="score-counter" class="text-lg font-bold text-white leading-tight">0</p>
+            </div>
+            <div class="text-center">
+                <p class="text-[10px] text-gray-500 uppercase leading-none">Best</p>
+                <p id="best-counter" class="text-lg font-bold text-yellow-400 leading-tight">0</p>
             </div>
         </div>
     </div>
 
     <!-- Main Game Area -->
-    <div id="game-container" class="flex-1 flex flex-col justify-center items-center w-full max-w-lg relative">
-        
-        <!-- Kanji Card -->
-        <!-- FIX: Increased margin-bottom (mb-24) to prevent Meaning overlap -->
-        <div class="relative w-full aspect-square max-h-[300px] max-w-[300px] flex items-center justify-center bg-gray-800 rounded-3xl shadow-2xl border border-gray-700 mb-24 animate-pop">
-            <!-- Background Decoration -->
-            <div class="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiZmZmZmZiIvPjwvc3ZnPg==')]"></div>
-            
-            <h1 id="kanji-display" class="kanji-font text-6xl md:text-7xl text-white z-10 select-none text-center px-4 leading-tight"></h1>
-            
-            <!-- Hint Overlay (Hidden initially) -->
-            <div id="hint-display" class="absolute -top-12 bg-yellow-600/90 text-white px-4 py-1 rounded-full text-lg jp-font shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none">
-                Hint
-            </div>
+    <div id="game-container" class="flex-1 flex flex-col justify-center items-center w-full max-w-lg px-4 min-h-0 overflow-hidden">
 
-            <!-- Meaning Display (Shown on completion) -->
-            <!-- Positioned absolutely at the bottom -->
-            <div id="meaning-display" class="absolute -bottom-20 w-full text-center opacity-0 transition-opacity duration-300">
-                <p class="text-gray-400 text-sm uppercase tracking-wide">Meaning</p>
-                <p id="meaning-text" class="text-xl text-blue-300 font-bold capitalize">...</p>
+        <!-- Kanji Card -->
+        <div class="relative w-full max-w-[240px] md:max-w-[300px] aspect-square flex items-center justify-center bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 mb-2 animate-pop shrink-0">
+            <div class="absolute inset-0 opacity-10 rounded-2xl bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiZmZmZmZiIvPjwvc3ZnPg==')]"></div>
+            <h1 id="kanji-display" class="kanji-font text-5xl md:text-7xl text-white z-10 select-none text-center px-4 leading-tight"></h1>
+
+            <!-- Hint Overlay -->
+            <div id="hint-display" class="absolute -top-9 bg-yellow-600/90 text-white px-3 py-0.5 rounded-full text-sm jp-font shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none whitespace-nowrap">
+                Hint
             </div>
         </div>
 
+        <!-- Meaning Display -->
+        <div id="meaning-display" class="w-full text-center opacity-0 transition-opacity duration-300 h-10 flex flex-col justify-center shrink-0">
+            <p class="text-gray-400 text-[10px] uppercase tracking-wide leading-none">Meaning</p>
+            <p id="meaning-text" class="text-base text-blue-300 font-bold capitalize leading-tight">...</p>
+        </div>
+
         <!-- Input Display -->
-        <div class="w-full text-center mb-4 relative h-16 flex items-center justify-center">
-            <div id="input-feedback-box" class="text-3xl md:text-4xl font-mono tracking-widest space-x-1 border-b-2 border-gray-600 pb-2 px-4 min-w-[200px] transition-colors duration-200">
+        <div class="w-full text-center my-2 relative flex items-center justify-center shrink-0">
+            <div id="input-feedback-box" class="text-2xl md:text-4xl font-mono tracking-widest border-b-2 border-gray-600 pb-1 px-4 min-w-[180px] transition-colors duration-200">
                 <span id="typed-part" class="text-green-400"></span><span id="cursor" class="cursor"></span><span id="remaining-part" class="text-gray-600"></span>
             </div>
         </div>
 
-        <!-- Instructional / Feedback Text -->
-        <p id="status-message" class="h-6 text-sm text-gray-500 font-medium animate-pulse">Type the reading</p>
-
+        <!-- Status Text -->
+        <p id="status-message" class="h-5 text-xs text-gray-500 font-medium shrink-0">Type the reading</p>
     </div>
 
-    <!-- Virtual Keyboard (Mobile Only - visible on small screens) -->
-    <div id="virtual-keyboard" class="w-full max-w-2xl grid grid-cols-10 gap-1 pb-2 md:hidden">
-        <!-- QWERTY Layout generated by JS -->
-    </div>
+    <!-- Virtual Keyboard (Mobile) -->
+    <div id="virtual-keyboard" class="w-full max-w-2xl px-1 pb-2 md:hidden shrink-0"></div>
 
-    <!-- Hidden Input for Desktop Focus -->
-    <input type="text" id="hidden-input" class="absolute opacity-0 top-0 left-0 h-0 w-0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <!-- Invisible focus trap for desktop (inputmode none prevents mobile keyboard) -->
+    <input type="text" id="hidden-input" inputmode="none" class="absolute opacity-0 top-0 left-0 h-0 w-0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly>
 
     <script>
-        // --- Game Data: Common Vocabulary ---
-        // Format: k=Kanji Word, r=Romaji, m=Meaning, l=JLPT Level
-        const wordDatabase = [
-            // N5 (Basic Vocabulary)
-            {k:'食べる', r:'taberu', m:'to eat', l:5},
-            {k:'飲む', r:'nomu', m:'to drink', l:5},
-            {k:'行く', r:'iku', m:'to go', l:5},
-            {k:'見る', r:'miru', m:'to see', l:5},
-            {k:'高い', r:'takai', m:'expensive/tall', l:5},
-            {k:'新しい', r:'atarashii', m:'new', l:5},
-            {k:'古い', r:'furui', m:'old', l:5},
-            {k:'大きい', r:'ookii', m:'big', l:5},
-            {k:'小さい', r:'chiisai', m:'small', l:5},
-            {k:'日本語', r:'nihongo', m:'Japanese language', l:5},
-            {k:'先生', r:'sensei', m:'teacher', l:5},
-            {k:'学生', r:'gakusei', m:'student', l:5},
-            {k:'学校', r:'gakkou', m:'school', l:5},
-            {k:'名前', r:'namae', m:'name', l:5},
-            {k:'時間', r:'jikan', m:'time', l:5},
-            {k:'電車', r:'densha', m:'train', l:5},
-            {k:'今日', r:'kyou', m:'today', l:5},
-            {k:'明日', r:'ashita', m:'tomorrow', l:5},
-            {k:'昨日', r:'kinou', m:'yesterday', l:5},
-            {k:'勉強', r:'benkyou', m:'study', l:5},
-            {k:'買い物', r:'kaimono', m:'shopping', l:5},
-            {k:'仕事', r:'shigoto', m:'work', l:5},
-            {k:'友達', r:'tomodachi', m:'friend', l:5},
+    // =============================================
+    // WORD DATABASE — 1000+ words across JLPT N5–N1
+    // Format: k=Kanji, r=Romaji, m=Meaning, l=Level (5=N5 easiest … 1=N1 hardest)
+    // =============================================
+    const wordDatabase = [
+        // ──────────────── N5 (Level 5) — ~220 words ────────────────
+        // Verbs
+        {k:'食べる',r:'taberu',m:'to eat',l:5},
+        {k:'飲む',r:'nomu',m:'to drink',l:5},
+        {k:'行く',r:'iku',m:'to go',l:5},
+        {k:'来る',r:'kuru',m:'to come',l:5},
+        {k:'見る',r:'miru',m:'to see',l:5},
+        {k:'聞く',r:'kiku',m:'to listen',l:5},
+        {k:'読む',r:'yomu',m:'to read',l:5},
+        {k:'書く',r:'kaku',m:'to write',l:5},
+        {k:'話す',r:'hanasu',m:'to speak',l:5},
+        {k:'買う',r:'kau',m:'to buy',l:5},
+        {k:'待つ',r:'matsu',m:'to wait',l:5},
+        {k:'立つ',r:'tatsu',m:'to stand',l:5},
+        {k:'座る',r:'suwaru',m:'to sit',l:5},
+        {k:'歩く',r:'aruku',m:'to walk',l:5},
+        {k:'走る',r:'hashiru',m:'to run',l:5},
+        {k:'遊ぶ',r:'asobu',m:'to play',l:5},
+        {k:'会う',r:'au',m:'to meet',l:5},
+        {k:'使う',r:'tsukau',m:'to use',l:5},
+        {k:'作る',r:'tsukuru',m:'to make',l:5},
+        {k:'入る',r:'hairu',m:'to enter',l:5},
+        {k:'出る',r:'deru',m:'to exit',l:5},
+        {k:'開ける',r:'akeru',m:'to open',l:5},
+        {k:'閉める',r:'shimeru',m:'to close',l:5},
+        {k:'持つ',r:'motsu',m:'to hold',l:5},
+        {k:'知る',r:'shiru',m:'to know',l:5},
+        {k:'住む',r:'sumu',m:'to live',l:5},
+        {k:'働く',r:'hataraku',m:'to work',l:5},
+        {k:'教える',r:'oshieru',m:'to teach',l:5},
+        {k:'覚える',r:'oboeru',m:'to remember',l:5},
+        {k:'忘れる',r:'wasureru',m:'to forget',l:5},
+        {k:'分かる',r:'wakaru',m:'to understand',l:5},
+        {k:'始まる',r:'hajimaru',m:'to begin',l:5},
+        {k:'終わる',r:'owaru',m:'to end',l:5},
+        {k:'売る',r:'uru',m:'to sell',l:5},
+        {k:'送る',r:'okuru',m:'to send',l:5},
+        {k:'着る',r:'kiru',m:'to wear',l:5},
+        {k:'洗う',r:'arau',m:'to wash',l:5},
+        {k:'切る',r:'kiru',m:'to cut',l:5},
+        {k:'消す',r:'kesu',m:'to turn off',l:5},
+        {k:'呼ぶ',r:'yobu',m:'to call',l:5},
+        {k:'答える',r:'kotaeru',m:'to answer',l:5},
+        {k:'払う',r:'harau',m:'to pay',l:5},
+        {k:'貸す',r:'kasu',m:'to lend',l:5},
+        {k:'借りる',r:'kariru',m:'to borrow',l:5},
+        {k:'返す',r:'kaesu',m:'to return',l:5},
+        {k:'起きる',r:'okiru',m:'to wake up',l:5},
+        {k:'寝る',r:'neru',m:'to sleep',l:5},
+        {k:'帰る',r:'kaeru',m:'to go home',l:5},
+        {k:'泳ぐ',r:'oyogu',m:'to swim',l:5},
+        {k:'歌う',r:'utau',m:'to sing',l:5},
+        {k:'休む',r:'yasumu',m:'to rest',l:5},
+        {k:'出す',r:'dasu',m:'to take out',l:5},
+        {k:'乗る',r:'noru',m:'to ride',l:5},
+        {k:'降りる',r:'oriru',m:'to get off',l:5},
+        {k:'押す',r:'osu',m:'to push',l:5},
+        {k:'引く',r:'hiku',m:'to pull',l:5},
+        {k:'飛ぶ',r:'tobu',m:'to fly',l:5},
+        {k:'死ぬ',r:'shinu',m:'to die',l:5},
+        {k:'咲く',r:'saku',m:'to bloom',l:5},
+        {k:'思う',r:'omou',m:'to think',l:5},
+        {k:'置く',r:'oku',m:'to put',l:5},
+        // Adjectives
+        {k:'高い',r:'takai',m:'expensive',l:5},
+        {k:'安い',r:'yasui',m:'cheap',l:5},
+        {k:'新しい',r:'atarashii',m:'new',l:5},
+        {k:'古い',r:'furui',m:'old',l:5},
+        {k:'大きい',r:'ookii',m:'big',l:5},
+        {k:'小さい',r:'chiisai',m:'small',l:5},
+        {k:'長い',r:'nagai',m:'long',l:5},
+        {k:'短い',r:'mijikai',m:'short',l:5},
+        {k:'広い',r:'hiroi',m:'wide',l:5},
+        {k:'狭い',r:'semai',m:'narrow',l:5},
+        {k:'多い',r:'ooi',m:'many',l:5},
+        {k:'少ない',r:'sukunai',m:'few',l:5},
+        {k:'暑い',r:'atsui',m:'hot',l:5},
+        {k:'寒い',r:'samui',m:'cold',l:5},
+        {k:'暖かい',r:'atatakai',m:'warm',l:5},
+        {k:'涼しい',r:'suzushii',m:'cool',l:5},
+        {k:'明るい',r:'akarui',m:'bright',l:5},
+        {k:'暗い',r:'kurai',m:'dark',l:5},
+        {k:'早い',r:'hayai',m:'early',l:5},
+        {k:'遅い',r:'osoi',m:'slow',l:5},
+        {k:'近い',r:'chikai',m:'near',l:5},
+        {k:'遠い',r:'tooi',m:'far',l:5},
+        {k:'良い',r:'yoi',m:'good',l:5},
+        {k:'悪い',r:'warui',m:'bad',l:5},
+        {k:'白い',r:'shiroi',m:'white',l:5},
+        {k:'黒い',r:'kuroi',m:'black',l:5},
+        {k:'赤い',r:'akai',m:'red',l:5},
+        {k:'青い',r:'aoi',m:'blue',l:5},
+        {k:'甘い',r:'amai',m:'sweet',l:5},
+        {k:'辛い',r:'karai',m:'spicy',l:5},
+        {k:'若い',r:'wakai',m:'young',l:5},
+        {k:'丸い',r:'marui',m:'round',l:5},
+        {k:'重い',r:'omoi',m:'heavy',l:5},
+        {k:'軽い',r:'karui',m:'light',l:5},
+        {k:'太い',r:'futoi',m:'thick',l:5},
+        {k:'細い',r:'hosoi',m:'thin',l:5},
+        {k:'強い',r:'tsuyoi',m:'strong',l:5},
+        {k:'弱い',r:'yowai',m:'weak',l:5},
+        {k:'美しい',r:'utsukushii',m:'beautiful',l:5},
+        {k:'楽しい',r:'tanoshii',m:'fun',l:5},
+        {k:'嬉しい',r:'ureshii',m:'happy',l:5},
+        {k:'悲しい',r:'kanashii',m:'sad',l:5},
+        {k:'痛い',r:'itai',m:'painful',l:5},
+        {k:'欲しい',r:'hoshii',m:'wanted',l:5},
+        // Nouns
+        {k:'日本語',r:'nihongo',m:'Japanese',l:5},
+        {k:'英語',r:'eigo',m:'English',l:5},
+        {k:'先生',r:'sensei',m:'teacher',l:5},
+        {k:'学生',r:'gakusei',m:'student',l:5},
+        {k:'学校',r:'gakkou',m:'school',l:5},
+        {k:'名前',r:'namae',m:'name',l:5},
+        {k:'時間',r:'jikan',m:'time',l:5},
+        {k:'電車',r:'densha',m:'train',l:5},
+        {k:'今日',r:'kyou',m:'today',l:5},
+        {k:'明日',r:'ashita',m:'tomorrow',l:5},
+        {k:'昨日',r:'kinou',m:'yesterday',l:5},
+        {k:'勉強',r:'benkyou',m:'study',l:5},
+        {k:'仕事',r:'shigoto',m:'work',l:5},
+        {k:'友達',r:'tomodachi',m:'friend',l:5},
+        {k:'部屋',r:'heya',m:'room',l:5},
+        {k:'窓',r:'mado',m:'window',l:5},
+        {k:'机',r:'tsukue',m:'desk',l:5},
+        {k:'椅子',r:'isu',m:'chair',l:5},
+        {k:'新聞',r:'shinbun',m:'newspaper',l:5},
+        {k:'映画',r:'eiga',m:'movie',l:5},
+        {k:'音楽',r:'ongaku',m:'music',l:5},
+        {k:'写真',r:'shashin',m:'photo',l:5},
+        {k:'天気',r:'tenki',m:'weather',l:5},
+        {k:'山',r:'yama',m:'mountain',l:5},
+        {k:'川',r:'kawa',m:'river',l:5},
+        {k:'海',r:'umi',m:'sea',l:5},
+        {k:'花',r:'hana',m:'flower',l:5},
+        {k:'木',r:'ki',m:'tree',l:5},
+        {k:'犬',r:'inu',m:'dog',l:5},
+        {k:'猫',r:'neko',m:'cat',l:5},
+        {k:'鳥',r:'tori',m:'bird',l:5},
+        {k:'魚',r:'sakana',m:'fish',l:5},
+        {k:'肉',r:'niku',m:'meat',l:5},
+        {k:'水',r:'mizu',m:'water',l:5},
+        {k:'朝',r:'asa',m:'morning',l:5},
+        {k:'昼',r:'hiru',m:'noon',l:5},
+        {k:'夜',r:'yoru',m:'night',l:5},
+        {k:'春',r:'haru',m:'spring',l:5},
+        {k:'夏',r:'natsu',m:'summer',l:5},
+        {k:'秋',r:'aki',m:'autumn',l:5},
+        {k:'冬',r:'fuyu',m:'winter',l:5},
+        {k:'東',r:'higashi',m:'east',l:5},
+        {k:'西',r:'nishi',m:'west',l:5},
+        {k:'南',r:'minami',m:'south',l:5},
+        {k:'北',r:'kita',m:'north',l:5},
+        {k:'右',r:'migi',m:'right',l:5},
+        {k:'左',r:'hidari',m:'left',l:5},
+        {k:'上',r:'ue',m:'above',l:5},
+        {k:'下',r:'shita',m:'below',l:5},
+        {k:'前',r:'mae',m:'front',l:5},
+        {k:'中',r:'naka',m:'inside',l:5},
+        {k:'外',r:'soto',m:'outside',l:5},
+        {k:'体',r:'karada',m:'body',l:5},
+        {k:'頭',r:'atama',m:'head',l:5},
+        {k:'顔',r:'kao',m:'face',l:5},
+        {k:'目',r:'me',m:'eye',l:5},
+        {k:'耳',r:'mimi',m:'ear',l:5},
+        {k:'口',r:'kuchi',m:'mouth',l:5},
+        {k:'手',r:'te',m:'hand',l:5},
+        {k:'足',r:'ashi',m:'foot',l:5},
+        {k:'父',r:'chichi',m:'father',l:5},
+        {k:'母',r:'haha',m:'mother',l:5},
+        {k:'兄',r:'ani',m:'older brother',l:5},
+        {k:'姉',r:'ane',m:'older sister',l:5},
+        {k:'弟',r:'otouto',m:'younger brother',l:5},
+        {k:'妹',r:'imouto',m:'younger sister',l:5},
+        {k:'息子',r:'musuko',m:'son',l:5},
+        {k:'娘',r:'musume',m:'daughter',l:5},
+        {k:'男',r:'otoko',m:'man',l:5},
+        {k:'女',r:'onna',m:'woman',l:5},
+        {k:'子供',r:'kodomo',m:'child',l:5},
+        {k:'駅',r:'eki',m:'station',l:5},
+        {k:'道',r:'michi',m:'road',l:5},
+        {k:'病院',r:'byouin',m:'hospital',l:5},
+        {k:'銀行',r:'ginkou',m:'bank',l:5},
+        {k:'公園',r:'kouen',m:'park',l:5},
+        {k:'店',r:'mise',m:'shop',l:5},
+        {k:'町',r:'machi',m:'town',l:5},
+        {k:'村',r:'mura',m:'village',l:5},
+        {k:'国',r:'kuni',m:'country',l:5},
+        {k:'空',r:'sora',m:'sky',l:5},
+        {k:'雨',r:'ame',m:'rain',l:5},
+        {k:'雪',r:'yuki',m:'snow',l:5},
+        {k:'風',r:'kaze',m:'wind',l:5},
+        {k:'色',r:'iro',m:'color',l:5},
+        {k:'声',r:'koe',m:'voice',l:5},
+        {k:'心',r:'kokoro',m:'heart',l:5},
+        {k:'力',r:'chikara',m:'power',l:5},
+        {k:'石',r:'ishi',m:'stone',l:5},
+        {k:'金',r:'kane',m:'money',l:5},
+        {k:'紙',r:'kami',m:'paper',l:5},
+        {k:'本',r:'hon',m:'book',l:5},
+        {k:'言葉',r:'kotoba',m:'word',l:5},
+        {k:'意味',r:'imi',m:'meaning',l:5},
+        {k:'番号',r:'bangou',m:'number',l:5},
+        {k:'地図',r:'chizu',m:'map',l:5},
+        {k:'傘',r:'kasa',m:'umbrella',l:5},
+        {k:'鼻',r:'hana',m:'nose',l:5},
+        {k:'首',r:'kubi',m:'neck',l:5},
+        {k:'指',r:'yubi',m:'finger',l:5},
+        {k:'背中',r:'senaka',m:'back',l:5},
+        {k:'肩',r:'kata',m:'shoulder',l:5},
+        {k:'腹',r:'hara',m:'stomach',l:5},
+        {k:'胸',r:'mune',m:'chest',l:5},
+        {k:'膝',r:'hiza',m:'knee',l:5},
+        {k:'爪',r:'tsume',m:'nail',l:5},
+        {k:'唇',r:'kuchibiru',m:'lips',l:5},
+        {k:'血',r:'chi',m:'blood',l:5},
+        {k:'涙',r:'namida',m:'tears',l:5},
+        {k:'汗',r:'ase',m:'sweat',l:5},
+        {k:'夢',r:'yume',m:'dream',l:5},
+        {k:'嘘',r:'uso',m:'lie',l:5},
+        {k:'今',r:'ima',m:'now',l:5},
+        {k:'後',r:'ato',m:'after',l:5},
+        {k:'何',r:'nani',m:'what',l:5},
+        {k:'誰',r:'dare',m:'who',l:5},
+        {k:'皆',r:'mina',m:'everyone',l:5},
+        {k:'物',r:'mono',m:'thing',l:5},
+        {k:'事',r:'koto',m:'matter',l:5},
+        {k:'所',r:'tokoro',m:'place',l:5},
+        {k:'方',r:'hou',m:'direction',l:5},
+        {k:'側',r:'gawa',m:'side',l:5},
+        {k:'奥',r:'oku',m:'interior',l:5},
+        {k:'隣',r:'tonari',m:'next door',l:5},
+        {k:'橋',r:'hashi',m:'bridge',l:5},
+        {k:'角',r:'kado',m:'corner',l:5},
 
-            // N4 (Intermediate Vocabulary)
-            {k:'家族', r:'kazoku', m:'family', l:4},
-            {k:'兄弟', r:'kyoudai', m:'siblings', l:4},
-            {k:'手紙', r:'tegami', m:'letter', l:4},
-            {k:'歌う', r:'utau', m:'to sing', l:4},
-            {k:'泳ぐ', r:'oyogu', m:'to swim', l:4},
-            {k:'終わる', r:'owaru', m:'to end', l:4},
-            {k:'帰る', r:'kaeru', m:'to return home', l:4},
-            {k:'起きる', r:'okiru', m:'to wake up', l:4},
-            {k:'寝る', r:'neru', m:'to sleep', l:4},
-            {k:'面白い', r:'omoshiroi', m:'interesting', l:4},
-            {k:'難しい', r:'muzukashii', m:'difficult', l:4},
-            {k:'忙しい', r:'isogashii', m:'busy', l:4},
-            {k:'天気', r:'tenki', m:'weather', l:4},
-            {k:'電話', r:'denwa', m:'telephone', l:4},
-            {k:'料理', r:'ryouri', m:'cooking', l:4},
-            {k:'旅行', r:'ryokou', m:'travel', l:4},
-            {k:'病院', r:'byouin', m:'hospital', l:4},
-            {k:'意味', r:'imi', m:'meaning', l:4},
-            {k:'意見', r:'iken', m:'opinion', l:4},
+        // ──────────────── N4 (Level 4) — ~230 words ────────────────
+        // Verbs
+        {k:'届ける',r:'todokeru',m:'to deliver',l:4},
+        {k:'届く',r:'todoku',m:'to arrive',l:4},
+        {k:'決める',r:'kimeru',m:'to decide',l:4},
+        {k:'決まる',r:'kimaru',m:'to be decided',l:4},
+        {k:'変わる',r:'kawaru',m:'to change',l:4},
+        {k:'変える',r:'kaeru',m:'to change something',l:4},
+        {k:'集める',r:'atsumeru',m:'to collect',l:4},
+        {k:'集まる',r:'atsumaru',m:'to gather',l:4},
+        {k:'伝える',r:'tsutaeru',m:'to convey',l:4},
+        {k:'落とす',r:'otosu',m:'to drop',l:4},
+        {k:'落ちる',r:'ochiru',m:'to fall',l:4},
+        {k:'建てる',r:'tateru',m:'to build',l:4},
+        {k:'壊す',r:'kowasu',m:'to break',l:4},
+        {k:'壊れる',r:'kowareru',m:'to be broken',l:4},
+        {k:'並ぶ',r:'narabu',m:'to line up',l:4},
+        {k:'並べる',r:'naraberu',m:'to arrange',l:4},
+        {k:'育てる',r:'sodateru',m:'to raise',l:4},
+        {k:'慣れる',r:'nareru',m:'to get used to',l:4},
+        {k:'続ける',r:'tsuzukeru',m:'to continue',l:4},
+        {k:'続く',r:'tsuzuku',m:'to last',l:4},
+        {k:'頼む',r:'tanomu',m:'to request',l:4},
+        {k:'断る',r:'kotowaru',m:'to refuse',l:4},
+        {k:'選ぶ',r:'erabu',m:'to choose',l:4},
+        {k:'比べる',r:'kuraberu',m:'to compare',l:4},
+        {k:'捨てる',r:'suteru',m:'to throw away',l:4},
+        {k:'拾う',r:'hirou',m:'to pick up',l:4},
+        {k:'片付ける',r:'katazukeru',m:'to tidy up',l:4},
+        {k:'笑う',r:'warau',m:'to laugh',l:4},
+        {k:'泣く',r:'naku',m:'to cry',l:4},
+        {k:'怒る',r:'okoru',m:'to get angry',l:4},
+        {k:'驚く',r:'odoroku',m:'to be surprised',l:4},
+        {k:'困る',r:'komaru',m:'to be troubled',l:4},
+        {k:'喜ぶ',r:'yorokobu',m:'to be glad',l:4},
+        {k:'信じる',r:'shinjiru',m:'to believe',l:4},
+        {k:'祈る',r:'inoru',m:'to pray',l:4},
+        {k:'守る',r:'mamoru',m:'to protect',l:4},
+        {k:'調べる',r:'shiraberu',m:'to investigate',l:4},
+        {k:'見つける',r:'mitsukeru',m:'to find',l:4},
+        {k:'見つかる',r:'mitsukaru',m:'to be found',l:4},
+        {k:'受ける',r:'ukeru',m:'to receive',l:4},
+        {k:'渡す',r:'watasu',m:'to hand over',l:4},
+        {k:'渡る',r:'wataru',m:'to cross',l:4},
+        {k:'植える',r:'ueru',m:'to plant',l:4},
+        {k:'光る',r:'hikaru',m:'to shine',l:4},
+        {k:'鳴る',r:'naru',m:'to ring',l:4},
+        {k:'触る',r:'sawaru',m:'to touch',l:4},
+        {k:'包む',r:'tsutsumu',m:'to wrap',l:4},
+        {k:'似る',r:'niru',m:'to resemble',l:4},
+        {k:'太る',r:'futoru',m:'to gain weight',l:4},
+        {k:'痩せる',r:'yaseru',m:'to lose weight',l:4},
+        {k:'直す',r:'naosu',m:'to fix',l:4},
+        {k:'治る',r:'naoru',m:'to heal',l:4},
+        // Adjectives
+        {k:'面白い',r:'omoshiroi',m:'interesting',l:4},
+        {k:'難しい',r:'muzukashii',m:'difficult',l:4},
+        {k:'忙しい',r:'isogashii',m:'busy',l:4},
+        {k:'優しい',r:'yasashii',m:'kind',l:4},
+        {k:'厳しい',r:'kibishii',m:'strict',l:4},
+        {k:'恥ずかしい',r:'hazukashii',m:'embarrassing',l:4},
+        {k:'珍しい',r:'mezurashii',m:'rare',l:4},
+        {k:'素晴らしい',r:'subarashii',m:'wonderful',l:4},
+        {k:'正しい',r:'tadashii',m:'correct',l:4},
+        {k:'危ない',r:'abunai',m:'dangerous',l:4},
+        {k:'汚い',r:'kitanai',m:'dirty',l:4},
+        {k:'柔らかい',r:'yawarakai',m:'soft',l:4},
+        {k:'固い',r:'katai',m:'hard',l:4},
+        {k:'苦い',r:'nigai',m:'bitter',l:4},
+        {k:'酸っぱい',r:'suppai',m:'sour',l:4},
+        {k:'眠い',r:'nemui',m:'sleepy',l:4},
+        {k:'寂しい',r:'sabishii',m:'lonely',l:4},
+        {k:'恐ろしい',r:'osoroshii',m:'frightening',l:4},
+        {k:'懐かしい',r:'natsukashii',m:'nostalgic',l:4},
+        {k:'羨ましい',r:'urayamashii',m:'envious',l:4},
+        {k:'詳しい',r:'kuwashii',m:'detailed',l:4},
+        // Nouns
+        {k:'家族',r:'kazoku',m:'family',l:4},
+        {k:'兄弟',r:'kyoudai',m:'siblings',l:4},
+        {k:'親戚',r:'shinseki',m:'relative',l:4},
+        {k:'手紙',r:'tegami',m:'letter',l:4},
+        {k:'天気',r:'tenki',m:'weather',l:4},
+        {k:'電話',r:'denwa',m:'telephone',l:4},
+        {k:'料理',r:'ryouri',m:'cooking',l:4},
+        {k:'旅行',r:'ryokou',m:'travel',l:4},
+        {k:'意見',r:'iken',m:'opinion',l:4},
+        {k:'趣味',r:'shumi',m:'hobby',l:4},
+        {k:'予定',r:'yotei',m:'plan',l:4},
+        {k:'予約',r:'yoyaku',m:'reservation',l:4},
+        {k:'練習',r:'renshuu',m:'practice',l:4},
+        {k:'試験',r:'shiken',m:'exam',l:4},
+        {k:'授業',r:'jugyou',m:'class',l:4},
+        {k:'宿題',r:'shukudai',m:'homework',l:4},
+        {k:'質問',r:'shitsumon',m:'question',l:4},
+        {k:'答え',r:'kotae',m:'answer',l:4},
+        {k:'問題',r:'mondai',m:'problem',l:4},
+        {k:'理由',r:'riyuu',m:'reason',l:4},
+        {k:'原因',r:'genin',m:'cause',l:4},
+        {k:'結果',r:'kekka',m:'result',l:4},
+        {k:'最初',r:'saisho',m:'first',l:4},
+        {k:'最後',r:'saigo',m:'last',l:4},
+        {k:'最近',r:'saikin',m:'recently',l:4},
+        {k:'将来',r:'shourai',m:'future',l:4},
+        {k:'過去',r:'kako',m:'past',l:4},
+        {k:'現在',r:'genzai',m:'present',l:4},
+        {k:'世界',r:'sekai',m:'world',l:4},
+        {k:'社会',r:'shakai',m:'society',l:4},
+        {k:'文化',r:'bunka',m:'culture',l:4},
+        {k:'歴史',r:'rekishi',m:'history',l:4},
+        {k:'自然',r:'shizen',m:'nature',l:4},
+        {k:'景色',r:'keshiki',m:'scenery',l:4},
+        {k:'季節',r:'kisetsu',m:'season',l:4},
+        {k:'台風',r:'taifuu',m:'typhoon',l:4},
+        {k:'地震',r:'jishin',m:'earthquake',l:4},
+        {k:'事故',r:'jiko',m:'accident',l:4},
+        {k:'火事',r:'kaji',m:'fire',l:4},
+        {k:'安全',r:'anzen',m:'safety',l:4},
+        {k:'危険',r:'kiken',m:'danger',l:4},
+        {k:'健康',r:'kenkou',m:'health',l:4},
+        {k:'生活',r:'seikatsu',m:'daily life',l:4},
+        {k:'習慣',r:'shuukan',m:'habit',l:4},
+        {k:'気持ち',r:'kimochi',m:'feeling',l:4},
+        {k:'気分',r:'kibun',m:'mood',l:4},
+        {k:'性格',r:'seikaku',m:'personality',l:4},
+        {k:'態度',r:'taido',m:'attitude',l:4},
+        {k:'関係',r:'kankei',m:'relationship',l:4},
+        {k:'約束',r:'yakusoku',m:'promise',l:4},
+        {k:'挨拶',r:'aisatsu',m:'greeting',l:4},
+        {k:'返事',r:'henji',m:'reply',l:4},
+        {k:'連絡',r:'renraku',m:'contact',l:4},
+        {k:'相談',r:'soudan',m:'consultation',l:4},
+        {k:'会議',r:'kaigi',m:'meeting',l:4},
+        {k:'発表',r:'happyou',m:'presentation',l:4},
+        {k:'報告',r:'houkoku',m:'report',l:4},
+        {k:'説明',r:'setsumei',m:'explanation',l:4},
+        {k:'注意',r:'chuui',m:'caution',l:4},
+        {k:'興味',r:'kyoumi',m:'interest',l:4},
+        {k:'経験',r:'keiken',m:'experience',l:4},
+        {k:'記憶',r:'kioku',m:'memory',l:4},
+        {k:'想像',r:'souzou',m:'imagination',l:4},
+        {k:'感想',r:'kansou',m:'impression',l:4},
+        {k:'感動',r:'kandou',m:'emotion',l:4},
+        {k:'努力',r:'doryoku',m:'effort',l:4},
+        {k:'成功',r:'seikou',m:'success',l:4},
+        {k:'失敗',r:'shippai',m:'failure',l:4},
+        {k:'目的',r:'mokuteki',m:'purpose',l:4},
+        {k:'目標',r:'mokuhyou',m:'goal',l:4},
+        {k:'方法',r:'houhou',m:'method',l:4},
+        {k:'規則',r:'kisoku',m:'rule',l:4},
+        {k:'交通',r:'koutsuu',m:'traffic',l:4},
+        {k:'信号',r:'shingou',m:'traffic light',l:4},
+        {k:'交差点',r:'kousaten',m:'intersection',l:4},
+        {k:'教科書',r:'kyoukasho',m:'textbook',l:4},
+        {k:'辞書',r:'jisho',m:'dictionary',l:4},
+        {k:'科学',r:'kagaku',m:'science',l:4},
+        {k:'数学',r:'suugaku',m:'mathematics',l:4},
+        {k:'地理',r:'chiri',m:'geography',l:4},
+        {k:'政治',r:'seiji',m:'politics',l:4},
+        {k:'経済',r:'keizai',m:'economy',l:4},
+        {k:'人口',r:'jinkou',m:'population',l:4},
+        {k:'島',r:'shima',m:'island',l:4},
+        {k:'湖',r:'mizuumi',m:'lake',l:4},
+        {k:'森',r:'mori',m:'forest',l:4},
+        {k:'畑',r:'hatake',m:'field',l:4},
+        {k:'港',r:'minato',m:'harbor',l:4},
+        {k:'橋',r:'hashi',m:'bridge',l:4},
+        {k:'階段',r:'kaidan',m:'stairs',l:4},
+        {k:'屋根',r:'yane',m:'roof',l:4},
+        {k:'壁',r:'kabe',m:'wall',l:4},
+        {k:'床',r:'yuka',m:'floor',l:4},
+        {k:'庭',r:'niwa',m:'garden',l:4},
+        {k:'玄関',r:'genkan',m:'entrance',l:4},
+        {k:'台所',r:'daidokoro',m:'kitchen',l:4},
+        {k:'居間',r:'ima',m:'living room',l:4},
+        {k:'押入れ',r:'oshiire',m:'closet',l:4},
+        {k:'鏡',r:'kagami',m:'mirror',l:4},
+        {k:'布団',r:'futon',m:'futon',l:4},
+        {k:'毛布',r:'moufu',m:'blanket',l:4},
+        {k:'枕',r:'makura',m:'pillow',l:4},
+        {k:'石鹸',r:'sekken',m:'soap',l:4},
+        {k:'歯磨き',r:'hamigaki',m:'toothpaste',l:4},
+        {k:'財布',r:'saifu',m:'wallet',l:4},
+        {k:'鍵',r:'kagi',m:'key',l:4},
+        {k:'荷物',r:'nimotsu',m:'luggage',l:4},
+        {k:'大事',r:'daiji',m:'important',l:4},
+        {k:'残念',r:'zannen',m:'regrettable',l:4},
+        {k:'立派',r:'rippa',m:'splendid',l:4},
+        {k:'丁寧',r:'teinei',m:'polite',l:4},
+        {k:'熱心',r:'nesshin',m:'enthusiastic',l:4},
+        {k:'心配',r:'shinpai',m:'worry',l:4},
+        {k:'迷惑',r:'meiwaku',m:'nuisance',l:4},
+        {k:'遠慮',r:'enryo',m:'reserve',l:4},
+        {k:'我慢',r:'gaman',m:'patience',l:4},
+        {k:'無理',r:'muri',m:'impossible',l:4},
+        {k:'自由',r:'jiyuu',m:'freedom',l:4},
+        {k:'留守',r:'rusu',m:'absence',l:4},
+        {k:'用事',r:'youji',m:'errand',l:4},
+        {k:'都合',r:'tsugou',m:'convenience',l:4},
+        {k:'乾杯',r:'kanpai',m:'cheers',l:4},
+        {k:'人形',r:'ningyou',m:'doll',l:4},
+        {k:'お祭り',r:'omatsuri',m:'festival',l:4},
+        {k:'花火',r:'hanabi',m:'fireworks',l:4},
+        {k:'祭日',r:'saijitsu',m:'holiday',l:4},
+        {k:'卒業',r:'sotsugyou',m:'graduation',l:4},
+        {k:'入学',r:'nyuugaku',m:'enrollment',l:4},
+        {k:'受付',r:'uketsuke',m:'reception',l:4},
+        {k:'出発',r:'shuppatsu',m:'departure',l:4},
+        {k:'到着',r:'touchaku',m:'arrival',l:4},
+        {k:'出席',r:'shusseki',m:'attendance',l:4},
+        {k:'欠席',r:'kesseki',m:'absence',l:4},
+        {k:'遅刻',r:'chikoku',m:'tardiness',l:4},
+        {k:'紹介',r:'shoukai',m:'introduction',l:4},
+        {k:'招待',r:'shoutai',m:'invitation',l:4},
+        {k:'見舞い',r:'mimai',m:'visiting the sick',l:4},
+        {k:'散歩',r:'sanpo',m:'stroll',l:4},
+        {k:'運動',r:'undou',m:'exercise',l:4},
+        {k:'体操',r:'taisou',m:'gymnastics',l:4},
+        {k:'競争',r:'kyousou',m:'competition',l:4},
+        {k:'速度',r:'sokudo',m:'speed',l:4},
+        {k:'距離',r:'kyori',m:'distance',l:4},
+        {k:'方向',r:'houkou',m:'direction',l:4},
+        {k:'位置',r:'ichi',m:'position',l:4},
+        {k:'面積',r:'menseki',m:'area',l:4},
 
-            // N3 (Advanced/Compound Vocabulary)
-            {k:'経験', r:'keiken', m:'experience', l:3},
-            {k:'説明', r:'setsumei', m:'explanation', l:3},
-            {k:'準備', r:'junbi', m:'preparation', l:3},
-            {k:'約束', r:'yakusoku', m:'promise', l:3},
-            {k:'紹介', r:'shoukai', m:'introduction', l:3},
-            {k:'相談', r:'soudan', m:'consultation', l:3},
-            {k:'連絡', r:'renraku', m:'contact', l:3},
-            {k:'結婚', r:'kekkon', m:'marriage', l:3},
-            {k:'計画', r:'keikaku', m:'plan', l:3},
-            {k:'経済', r:'keizai', m:'economy', l:3},
-            {k:'政治', r:'seiji', m:'politics', l:3},
-            {k:'産業', r:'sangyou', m:'industry', l:3},
-            {k:'製品', r:'seihin', m:'product', l:3},
-            {k:'番組', r:'bangumi', m:'TV program', l:3},
-            {k:'優勝', r:'yuushou', m:'victory/championship', l:3},
-            
-            // N2/N1 (Complex)
-            {k:'環境', r:'kankyou', m:'environment', l:2},
-            {k:'意識', r:'ishiki', m:'consciousness', l:2},
-            {k:'解決', r:'kaiketsu', m:'solution', l:2},
-            {k:'議論', r:'giron', m:'discussion', l:2}
-        ];
+        // ──────────────── N3 (Level 3) — ~250 words ────────────────
+        // Verbs
+        {k:'応じる',r:'oujiru',m:'to respond',l:3},
+        {k:'感じる',r:'kanjiru',m:'to feel',l:3},
+        {k:'生じる',r:'shoujiru',m:'to occur',l:3},
+        {k:'通じる',r:'tsuujiru',m:'to communicate',l:3},
+        {k:'信じる',r:'shinjiru',m:'to believe',l:3},
+        {k:'命じる',r:'meijiru',m:'to order',l:3},
+        {k:'演じる',r:'enjiru',m:'to perform',l:3},
+        {k:'認める',r:'mitomeru',m:'to acknowledge',l:3},
+        {k:'求める',r:'motomeru',m:'to seek',l:3},
+        {k:'含む',r:'fukumu',m:'to contain',l:3},
+        {k:'占める',r:'shimeru',m:'to occupy',l:3},
+        {k:'示す',r:'shimesu',m:'to indicate',l:3},
+        {k:'表す',r:'arawasu',m:'to express',l:3},
+        {k:'現れる',r:'arawareru',m:'to appear',l:3},
+        {k:'消える',r:'kieru',m:'to disappear',l:3},
+        {k:'増える',r:'fueru',m:'to increase',l:3},
+        {k:'減る',r:'heru',m:'to decrease',l:3},
+        {k:'増やす',r:'fuyasu',m:'to increase something',l:3},
+        {k:'減らす',r:'herasu',m:'to reduce',l:3},
+        {k:'広がる',r:'hirogaru',m:'to spread',l:3},
+        {k:'広げる',r:'hirogeru',m:'to widen',l:3},
+        {k:'深める',r:'fukameru',m:'to deepen',l:3},
+        {k:'高める',r:'takameru',m:'to heighten',l:3},
+        {k:'強める',r:'tsuyomeru',m:'to strengthen',l:3},
+        {k:'弱める',r:'yowameru',m:'to weaken',l:3},
+        {k:'進める',r:'susumeru',m:'to advance',l:3},
+        {k:'進む',r:'susumu',m:'to proceed',l:3},
+        {k:'戻る',r:'modoru',m:'to return',l:3},
+        {k:'戻す',r:'modosu',m:'to put back',l:3},
+        {k:'向かう',r:'mukau',m:'to head toward',l:3},
+        {k:'向ける',r:'mukeru',m:'to direct',l:3},
+        {k:'従う',r:'shitagau',m:'to follow',l:3},
+        {k:'基づく',r:'motozuku',m:'to be based on',l:3},
+        {k:'当たる',r:'ataru',m:'to hit',l:3},
+        {k:'防ぐ',r:'fusegu',m:'to prevent',l:3},
+        {k:'避ける',r:'sakeru',m:'to avoid',l:3},
+        {k:'逃げる',r:'nigeru',m:'to escape',l:3},
+        {k:'追う',r:'ou',m:'to chase',l:3},
+        {k:'捕まえる',r:'tsukamaeru',m:'to catch',l:3},
+        {k:'叫ぶ',r:'sakebu',m:'to shout',l:3},
+        {k:'囁く',r:'sasayaku',m:'to whisper',l:3},
+        {k:'眺める',r:'nagameru',m:'to gaze',l:3},
+        {k:'見守る',r:'mimamoru',m:'to watch over',l:3},
+        {k:'抱える',r:'kakaeru',m:'to hold in arms',l:3},
+        {k:'握る',r:'nigiru',m:'to grip',l:3},
+        {k:'振る',r:'furu',m:'to shake',l:3},
+        {k:'揺れる',r:'yureru',m:'to sway',l:3},
+        {k:'溶ける',r:'tokeru',m:'to melt',l:3},
+        {k:'凍る',r:'kooru',m:'to freeze',l:3},
+        {k:'乾く',r:'kawaku',m:'to dry',l:3},
+        {k:'濡れる',r:'nureru',m:'to get wet',l:3},
+        {k:'沈む',r:'shizumu',m:'to sink',l:3},
+        {k:'浮かぶ',r:'ukabu',m:'to float',l:3},
+        {k:'輝く',r:'kagayaku',m:'to sparkle',l:3},
+        {k:'響く',r:'hibiku',m:'to resound',l:3},
+        {k:'匂う',r:'niou',m:'to smell',l:3},
+        {k:'腐る',r:'kusaru',m:'to rot',l:3},
+        {k:'枯れる',r:'kareru',m:'to wither',l:3},
+        {k:'育つ',r:'sodatsu',m:'to grow up',l:3},
+        {k:'実る',r:'minoru',m:'to bear fruit',l:3},
+        {k:'暮らす',r:'kurasu',m:'to live',l:3},
+        {k:'稼ぐ',r:'kasegu',m:'to earn',l:3},
+        {k:'貯める',r:'tameru',m:'to save up',l:3},
+        {k:'投げる',r:'nageru',m:'to throw',l:3},
+        {k:'蹴る',r:'keru',m:'to kick',l:3},
+        {k:'叩く',r:'tataku',m:'to hit',l:3},
+        {k:'刺す',r:'sasu',m:'to stab',l:3},
+        {k:'縫う',r:'nuu',m:'to sew',l:3},
+        {k:'結ぶ',r:'musubu',m:'to tie',l:3},
+        {k:'解く',r:'toku',m:'to untie',l:3},
+        // Adjectives & Adverbs
+        {k:'複雑',r:'fukuzatsu',m:'complicated',l:3},
+        {k:'単純',r:'tanjun',m:'simple',l:3},
+        {k:'豊富',r:'houfu',m:'abundant',l:3},
+        {k:'貧乏',r:'binbou',m:'poor',l:3},
+        {k:'裕福',r:'yuufuku',m:'wealthy',l:3},
+        {k:'適当',r:'tekitou',m:'appropriate',l:3},
+        {k:'曖昧',r:'aimai',m:'ambiguous',l:3},
+        {k:'明確',r:'meikaku',m:'clear',l:3},
+        {k:'正確',r:'seikaku',m:'accurate',l:3},
+        {k:'深刻',r:'shinkoku',m:'serious',l:3},
+        {k:'重大',r:'juudai',m:'significant',l:3},
+        {k:'急速',r:'kyuusoku',m:'rapid',l:3},
+        {k:'緩やか',r:'yuruyaka',m:'gentle',l:3},
+        {k:'穏やか',r:'odayaka',m:'calm',l:3},
+        {k:'鮮やか',r:'azayaka',m:'vivid',l:3},
+        {k:'爽やか',r:'sawayaka',m:'refreshing',l:3},
+        {k:'滑らか',r:'nameraka',m:'smooth',l:3},
+        {k:'素直',r:'sunao',m:'obedient',l:3},
+        {k:'真面目',r:'majime',m:'serious',l:3},
+        {k:'地味',r:'jimi',m:'plain',l:3},
+        {k:'派手',r:'hade',m:'flashy',l:3},
+        // Nouns
+        {k:'準備',r:'junbi',m:'preparation',l:3},
+        {k:'紹介',r:'shoukai',m:'introduction',l:3},
+        {k:'結婚',r:'kekkon',m:'marriage',l:3},
+        {k:'離婚',r:'rikon',m:'divorce',l:3},
+        {k:'計画',r:'keikaku',m:'plan',l:3},
+        {k:'産業',r:'sangyou',m:'industry',l:3},
+        {k:'製品',r:'seihin',m:'product',l:3},
+        {k:'番組',r:'bangumi',m:'TV program',l:3},
+        {k:'優勝',r:'yuushou',m:'championship',l:3},
+        {k:'選手',r:'senshu',m:'athlete',l:3},
+        {k:'監督',r:'kantoku',m:'director',l:3},
+        {k:'観客',r:'kankyaku',m:'audience',l:3},
+        {k:'舞台',r:'butai',m:'stage',l:3},
+        {k:'作品',r:'sakuhin',m:'artwork',l:3},
+        {k:'作家',r:'sakka',m:'author',l:3},
+        {k:'画家',r:'gaka',m:'painter',l:3},
+        {k:'芸術',r:'geijutsu',m:'art',l:3},
+        {k:'技術',r:'gijutsu',m:'technology',l:3},
+        {k:'情報',r:'jouhou',m:'information',l:3},
+        {k:'通信',r:'tsuushin',m:'communication',l:3},
+        {k:'放送',r:'housou',m:'broadcast',l:3},
+        {k:'広告',r:'koukoku',m:'advertisement',l:3},
+        {k:'記事',r:'kiji',m:'article',l:3},
+        {k:'記録',r:'kiroku',m:'record',l:3},
+        {k:'資料',r:'shiryou',m:'materials',l:3},
+        {k:'書類',r:'shorui',m:'documents',l:3},
+        {k:'契約',r:'keiyaku',m:'contract',l:3},
+        {k:'取引',r:'torihiki',m:'transaction',l:3},
+        {k:'収入',r:'shuunyuu',m:'income',l:3},
+        {k:'支出',r:'shishutsu',m:'expenses',l:3},
+        {k:'利益',r:'rieki',m:'profit',l:3},
+        {k:'損害',r:'songai',m:'damage',l:3},
+        {k:'税金',r:'zeikin',m:'tax',l:3},
+        {k:'給料',r:'kyuuryou',m:'salary',l:3},
+        {k:'手当',r:'teate',m:'allowance',l:3},
+        {k:'権利',r:'kenri',m:'right',l:3},
+        {k:'義務',r:'gimu',m:'duty',l:3},
+        {k:'責任',r:'sekinin',m:'responsibility',l:3},
+        {k:'自由',r:'jiyuu',m:'freedom',l:3},
+        {k:'平和',r:'heiwa',m:'peace',l:3},
+        {k:'戦争',r:'sensou',m:'war',l:3},
+        {k:'軍隊',r:'guntai',m:'army',l:3},
+        {k:'犯罪',r:'hanzai',m:'crime',l:3},
+        {k:'警察',r:'keisatsu',m:'police',l:3},
+        {k:'裁判',r:'saiban',m:'trial',l:3},
+        {k:'法律',r:'houritsu',m:'law',l:3},
+        {k:'憲法',r:'kenpou',m:'constitution',l:3},
+        {k:'選挙',r:'senkyo',m:'election',l:3},
+        {k:'政府',r:'seifu',m:'government',l:3},
+        {k:'大臣',r:'daijin',m:'minister',l:3},
+        {k:'首相',r:'shushou',m:'prime minister',l:3},
+        {k:'国民',r:'kokumin',m:'citizens',l:3},
+        {k:'市民',r:'shimin',m:'city residents',l:3},
+        {k:'住民',r:'juumin',m:'residents',l:3},
+        {k:'農業',r:'nougyou',m:'agriculture',l:3},
+        {k:'漁業',r:'gyogyou',m:'fishing industry',l:3},
+        {k:'貿易',r:'boueki',m:'trade',l:3},
+        {k:'輸出',r:'yushutsu',m:'export',l:3},
+        {k:'輸入',r:'yunyuu',m:'import',l:3},
+        {k:'原料',r:'genryou',m:'raw material',l:3},
+        {k:'燃料',r:'nenryou',m:'fuel',l:3},
+        {k:'石油',r:'sekiyu',m:'petroleum',l:3},
+        {k:'電力',r:'denryoku',m:'electric power',l:3},
+        {k:'原子力',r:'genshiryoku',m:'nuclear power',l:3},
+        {k:'宇宙',r:'uchuu',m:'universe',l:3},
+        {k:'地球',r:'chikyuu',m:'earth',l:3},
+        {k:'太陽',r:'taiyou',m:'sun',l:3},
+        {k:'気温',r:'kion',m:'temperature',l:3},
+        {k:'湿度',r:'shitsudo',m:'humidity',l:3},
+        {k:'大陸',r:'tairiku',m:'continent',l:3},
+        {k:'半島',r:'hantou',m:'peninsula',l:3},
+        {k:'砂漠',r:'sabaku',m:'desert',l:3},
+        {k:'火山',r:'kazan',m:'volcano',l:3},
+        {k:'洞窟',r:'doukutsu',m:'cave',l:3},
+        {k:'滝',r:'taki',m:'waterfall',l:3},
+        {k:'波',r:'nami',m:'wave',l:3},
+        {k:'潮',r:'shio',m:'tide',l:3},
+        {k:'霧',r:'kiri',m:'fog',l:3},
+        {k:'雷',r:'kaminari',m:'thunder',l:3},
+        {k:'虹',r:'niji',m:'rainbow',l:3},
+        {k:'影',r:'kage',m:'shadow',l:3},
+        {k:'光',r:'hikari',m:'light',l:3},
+        {k:'闇',r:'yami',m:'darkness',l:3},
+        {k:'音',r:'oto',m:'sound',l:3},
+        {k:'匂い',r:'nioi',m:'scent',l:3},
+        {k:'味',r:'aji',m:'taste',l:3},
+        {k:'形',r:'katachi',m:'shape',l:3},
+        {k:'模様',r:'moyou',m:'pattern',l:3},
+        {k:'表面',r:'hyoumen',m:'surface',l:3},
+        {k:'頂上',r:'choujou',m:'summit',l:3},
+        {k:'底',r:'soko',m:'bottom',l:3},
+        {k:'角',r:'kado',m:'corner',l:3},
+        {k:'端',r:'hashi',m:'edge',l:3},
+        {k:'隙間',r:'sukima',m:'gap',l:3},
+        {k:'表',r:'omote',m:'front side',l:3},
+        {k:'裏',r:'ura',m:'back side',l:3},
+        {k:'血液',r:'ketsueki',m:'blood',l:3},
+        {k:'筋肉',r:'kinniku',m:'muscle',l:3},
+        {k:'骨',r:'hone',m:'bone',l:3},
+        {k:'皮膚',r:'hifu',m:'skin',l:3},
+        {k:'呼吸',r:'kokyuu',m:'breathing',l:3},
+        {k:'脈',r:'myaku',m:'pulse',l:3},
+        {k:'症状',r:'shoujou',m:'symptom',l:3},
+        {k:'治療',r:'chiryou',m:'treatment',l:3},
+        {k:'手術',r:'shujutsu',m:'surgery',l:3},
+        {k:'注射',r:'chuusha',m:'injection',l:3},
+        {k:'薬',r:'kusuri',m:'medicine',l:3},
+        {k:'患者',r:'kanja',m:'patient',l:3},
+        {k:'看護',r:'kango',m:'nursing',l:3},
+        {k:'診察',r:'shinsatsu',m:'examination',l:3},
+        {k:'処方',r:'shohou',m:'prescription',l:3},
+        {k:'入院',r:'nyuuin',m:'hospitalization',l:3},
+        {k:'退院',r:'taiin',m:'discharge',l:3},
+        {k:'通院',r:'tsuuin',m:'outpatient visit',l:3},
+        {k:'健診',r:'kenshin',m:'health checkup',l:3},
+        {k:'予防',r:'yobou',m:'prevention',l:3},
+        {k:'感染',r:'kansen',m:'infection',l:3},
+        {k:'免疫',r:'meneki',m:'immunity',l:3},
+        {k:'体温',r:'taion',m:'body temperature',l:3},
+        {k:'食欲',r:'shokuyoku',m:'appetite',l:3},
+        {k:'疲労',r:'hirou',m:'fatigue',l:3},
+        {k:'睡眠',r:'suimin',m:'sleep',l:3},
+        {k:'栄養',r:'eiyou',m:'nutrition',l:3},
+        {k:'運命',r:'unmei',m:'destiny',l:3},
+        {k:'幸運',r:'kouun',m:'good luck',l:3},
+        {k:'不幸',r:'fukou',m:'misfortune',l:3},
+        {k:'幸福',r:'koufuku',m:'happiness',l:3},
+        {k:'満足',r:'manzoku',m:'satisfaction',l:3},
+        {k:'不満',r:'fuman',m:'dissatisfaction',l:3},
+        {k:'期待',r:'kitai',m:'expectation',l:3},
+        {k:'失望',r:'shitsubou',m:'disappointment',l:3},
+        {k:'希望',r:'kibou',m:'hope',l:3},
+        {k:'願望',r:'ganbou',m:'desire',l:3},
+        {k:'野心',r:'yashin',m:'ambition',l:3},
+        {k:'好奇心',r:'koukishin',m:'curiosity',l:3},
+        {k:'集中',r:'shuuchuu',m:'concentration',l:3},
 
-        // --- Sound Engine (Synthesized) ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-        function playSound(type) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
+        // ──────────────── N2 (Level 2) — ~180 words ────────────────
+        // Verbs
+        {k:'異なる',r:'kotonaru',m:'to differ',l:2},
+        {k:'伴う',r:'tomonau',m:'to accompany',l:2},
+        {k:'及ぶ',r:'oyobu',m:'to reach',l:2},
+        {k:'及ぼす',r:'oyobosu',m:'to exert',l:2},
+        {k:'生かす',r:'ikasu',m:'to make use of',l:2},
+        {k:'果たす',r:'hatasu',m:'to fulfill',l:2},
+        {k:'担う',r:'ninau',m:'to bear',l:2},
+        {k:'携わる',r:'tazusawaru',m:'to be engaged in',l:2},
+        {k:'挑む',r:'idomu',m:'to challenge',l:2},
+        {k:'克服する',r:'kokufukusuru',m:'to overcome',l:2},
+        {k:'抑える',r:'osaeru',m:'to suppress',l:2},
+        {k:'促す',r:'unagasu',m:'to urge',l:2},
+        {k:'委ねる',r:'yudaneru',m:'to entrust',l:2},
+        {k:'培う',r:'tsuchikau',m:'to cultivate',l:2},
+        {k:'築く',r:'kizuku',m:'to build up',l:2},
+        {k:'覆す',r:'kutsugaesu',m:'to overturn',l:2},
+        {k:'妨げる',r:'samatageru',m:'to hinder',l:2},
+        {k:'損なう',r:'sokonau',m:'to harm',l:2},
+        {k:'偏る',r:'katayoru',m:'to be biased',l:2},
+        {k:'陥る',r:'ochiiru',m:'to fall into',l:2},
+        {k:'辿る',r:'tadoru',m:'to trace',l:2},
+        {k:'覗く',r:'nozoku',m:'to peek',l:2},
+        {k:'潜む',r:'hisomu',m:'to lurk',l:2},
+        {k:'漂う',r:'tadayou',m:'to drift',l:2},
+        {k:'澄む',r:'sumu',m:'to become clear',l:2},
+        {k:'濁る',r:'nigoru',m:'to become cloudy',l:2},
+        {k:'滲む',r:'nijimu',m:'to blur',l:2},
+        {k:'怯える',r:'obieru',m:'to be frightened',l:2},
+        {k:'戸惑う',r:'tomadou',m:'to be bewildered',l:2},
+        {k:'悔やむ',r:'kuyamu',m:'to regret',l:2},
+        {k:'嘆く',r:'nageku',m:'to lament',l:2},
+        {k:'憧れる',r:'akogareru',m:'to admire',l:2},
+        {k:'誓う',r:'chikau',m:'to vow',l:2},
+        {k:'励ます',r:'hagemasu',m:'to encourage',l:2},
+        {k:'慰める',r:'nagusameru',m:'to console',l:2},
+        {k:'唱える',r:'tonaeru',m:'to recite',l:2},
+        {k:'企てる',r:'kuwadateru',m:'to plan',l:2},
+        {k:'催す',r:'moyoosu',m:'to hold an event',l:2},
+        {k:'募る',r:'tsunoru',m:'to recruit',l:2},
+        {k:'賄う',r:'makanau',m:'to finance',l:2},
+        // Nouns
+        {k:'環境',r:'kankyou',m:'environment',l:2},
+        {k:'意識',r:'ishiki',m:'consciousness',l:2},
+        {k:'解決',r:'kaiketsu',m:'solution',l:2},
+        {k:'議論',r:'giron',m:'discussion',l:2},
+        {k:'影響',r:'eikyou',m:'influence',l:2},
+        {k:'対策',r:'taisaku',m:'countermeasure',l:2},
+        {k:'制度',r:'seido',m:'system',l:2},
+        {k:'構造',r:'kouzou',m:'structure',l:2},
+        {k:'機能',r:'kinou',m:'function',l:2},
+        {k:'役割',r:'yakuwari',m:'role',l:2},
+        {k:'傾向',r:'keikou',m:'tendency',l:2},
+        {k:'現象',r:'genshou',m:'phenomenon',l:2},
+        {k:'状況',r:'joukyou',m:'situation',l:2},
+        {k:'状態',r:'joutai',m:'condition',l:2},
+        {k:'段階',r:'dankai',m:'stage',l:2},
+        {k:'過程',r:'katei',m:'process',l:2},
+        {k:'要因',r:'youin',m:'factor',l:2},
+        {k:'要素',r:'youso',m:'element',l:2},
+        {k:'基準',r:'kijun',m:'standard',l:2},
+        {k:'基盤',r:'kiban',m:'foundation',l:2},
+        {k:'範囲',r:'hani',m:'scope',l:2},
+        {k:'領域',r:'ryouiki',m:'domain',l:2},
+        {k:'分野',r:'bunya',m:'field',l:2},
+        {k:'側面',r:'sokumen',m:'aspect',l:2},
+        {k:'視点',r:'shiten',m:'viewpoint',l:2},
+        {k:'観点',r:'kanten',m:'perspective',l:2},
+        {k:'概念',r:'gainen',m:'concept',l:2},
+        {k:'原理',r:'genri',m:'principle',l:2},
+        {k:'理論',r:'riron',m:'theory',l:2},
+        {k:'仮説',r:'kasetsu',m:'hypothesis',l:2},
+        {k:'根拠',r:'konkyo',m:'basis',l:2},
+        {k:'証拠',r:'shouko',m:'evidence',l:2},
+        {k:'矛盾',r:'mujun',m:'contradiction',l:2},
+        {k:'課題',r:'kadai',m:'issue',l:2},
+        {k:'障害',r:'shougai',m:'obstacle',l:2},
+        {k:'葛藤',r:'kattou',m:'conflict',l:2},
+        {k:'妥協',r:'dakyou',m:'compromise',l:2},
+        {k:'合意',r:'goui',m:'agreement',l:2},
+        {k:'批判',r:'hihan',m:'criticism',l:2},
+        {k:'偏見',r:'henken',m:'prejudice',l:2},
+        {k:'差別',r:'sabetsu',m:'discrimination',l:2},
+        {k:'平等',r:'byoudou',m:'equality',l:2},
+        {k:'人権',r:'jinken',m:'human rights',l:2},
+        {k:'尊厳',r:'songen',m:'dignity',l:2},
+        {k:'倫理',r:'rinri',m:'ethics',l:2},
+        {k:'道徳',r:'doutoku',m:'morality',l:2},
+        {k:'哲学',r:'tetsugaku',m:'philosophy',l:2},
+        {k:'思想',r:'shisou',m:'thought',l:2},
+        {k:'信念',r:'shinnen',m:'belief',l:2},
+        {k:'理念',r:'rinen',m:'ideal',l:2},
+        {k:'価値',r:'kachi',m:'value',l:2},
+        {k:'本質',r:'honshitsu',m:'essence',l:2},
+        {k:'実態',r:'jittai',m:'actual state',l:2},
+        {k:'実績',r:'jisseki',m:'achievement',l:2},
+        {k:'業績',r:'gyouseki',m:'accomplishment',l:2},
+        {k:'功績',r:'kouseki',m:'merit',l:2},
+        {k:'遺産',r:'isan',m:'heritage',l:2},
+        {k:'伝統',r:'dentou',m:'tradition',l:2},
+        {k:'慣習',r:'kanshuu',m:'custom',l:2},
+        {k:'儀式',r:'gishiki',m:'ceremony',l:2},
+        {k:'象徴',r:'shouchou',m:'symbol',l:2},
+        {k:'風景',r:'fuukei',m:'landscape',l:2},
+        {k:'情緒',r:'joucho',m:'emotion',l:2},
+        {k:'雰囲気',r:'funiki',m:'atmosphere',l:2},
+        {k:'風潮',r:'fuuchou',m:'trend',l:2},
+        {k:'動向',r:'doukou',m:'movement',l:2},
+        {k:'推移',r:'suii',m:'transition',l:2},
+        {k:'変遷',r:'hensen',m:'change',l:2},
+        {k:'変革',r:'henkaku',m:'reform',l:2},
+        {k:'革命',r:'kakumei',m:'revolution',l:2},
+        {k:'発展',r:'hatten',m:'development',l:2},
+        {k:'繁栄',r:'hanei',m:'prosperity',l:2},
+        {k:'衰退',r:'suitai',m:'decline',l:2},
+        {k:'崩壊',r:'houkai',m:'collapse',l:2},
+        {k:'危機',r:'kiki',m:'crisis',l:2},
+        {k:'混乱',r:'konran',m:'confusion',l:2},
+        {k:'秩序',r:'chitsujo',m:'order',l:2},
+        {k:'均衡',r:'kinkou',m:'balance',l:2},
+        {k:'調和',r:'chouwa',m:'harmony',l:2},
+        {k:'連携',r:'renkei',m:'cooperation',l:2},
+        {k:'統合',r:'tougou',m:'integration',l:2},
+        {k:'分裂',r:'bunretsu',m:'division',l:2},
+        {k:'孤立',r:'koritsu',m:'isolation',l:2},
+        {k:'依存',r:'izon',m:'dependence',l:2},
+        {k:'自立',r:'jiritsu',m:'independence',l:2},
+        {k:'忍耐',r:'nintai',m:'patience',l:2},
+        {k:'覚悟',r:'kakugo',m:'resolution',l:2},
+        {k:'決意',r:'ketsui',m:'determination',l:2},
+        {k:'野望',r:'yabou',m:'ambition',l:2},
+        {k:'志',r:'kokorozashi',m:'aspiration',l:2},
+        {k:'情熱',r:'jounetsu',m:'passion',l:2},
+        {k:'執念',r:'shuunen',m:'tenacity',l:2},
+        {k:'郷愁',r:'kyoushuu',m:'nostalgia',l:2},
+        {k:'哀愁',r:'aishuu',m:'melancholy',l:2},
+        {k:'憂鬱',r:'yuuutsu',m:'depression',l:2},
+        {k:'焦燥',r:'shousou',m:'impatience',l:2},
+        {k:'展開',r:'tenkai',m:'development',l:2},
+        {k:'展望',r:'tenbou',m:'prospect',l:2},
+        {k:'方針',r:'houshin',m:'policy',l:2},
+        {k:'戦略',r:'senryaku',m:'strategy',l:2},
+        {k:'指針',r:'shishin',m:'guideline',l:2},
+        {k:'規模',r:'kibo',m:'scale',l:2},
+        {k:'実施',r:'jisshi',m:'implementation',l:2},
+        {k:'措置',r:'sochi',m:'measure',l:2},
+        {k:'手段',r:'shudan',m:'means',l:2},
+        {k:'手法',r:'shuhou',m:'technique',l:2},
+        {k:'工夫',r:'kufuu',m:'ingenuity',l:2},
+        {k:'配慮',r:'hairyo',m:'consideration',l:2},
+        {k:'把握',r:'haaku',m:'grasp',l:2},
+        {k:'認識',r:'ninshiki',m:'recognition',l:2},
+        {k:'判断',r:'handan',m:'judgment',l:2},
+        {k:'評価',r:'hyouka',m:'evaluation',l:2},
+        {k:'分析',r:'bunseki',m:'analysis',l:2},
+        {k:'検討',r:'kentou',m:'examination',l:2},
+        {k:'研究',r:'kenkyuu',m:'research',l:2},
+        {k:'調査',r:'chousa',m:'survey',l:2},
+        {k:'統計',r:'toukei',m:'statistics',l:2},
+        {k:'比率',r:'hiritsu',m:'ratio',l:2},
+        {k:'割合',r:'wariai',m:'proportion',l:2},
+        {k:'平均',r:'heikin',m:'average',l:2},
+        {k:'水準',r:'suijun',m:'level',l:2},
+        {k:'程度',r:'teido',m:'degree',l:2},
+        {k:'限界',r:'genkai',m:'limit',l:2},
+        {k:'余裕',r:'yoyuu',m:'margin',l:2},
+        {k:'効率',r:'kouritsu',m:'efficiency',l:2},
 
-            if (type === 'type') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.05);
-                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.05);
-            } else if (type === 'error') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-                osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.15);
-                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.15);
-            } else if (type === 'success') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.3);
-            }
+        // ──────────────── N1 (Level 1) — ~150 words ────────────────
+        // Verbs
+        {k:'遂げる',r:'togeru',m:'to accomplish',l:1},
+        {k:'凌ぐ',r:'shinogu',m:'to endure',l:1},
+        {k:'貫く',r:'tsuranuku',m:'to penetrate',l:1},
+        {k:'覆う',r:'oou',m:'to cover',l:1},
+        {k:'侵す',r:'okasu',m:'to invade',l:1},
+        {k:'蝕む',r:'mushibamu',m:'to erode',l:1},
+        {k:'脅かす',r:'obiyakasu',m:'to threaten',l:1},
+        {k:'翻す',r:'hirugaesu',m:'to reverse',l:1},
+        {k:'司る',r:'tsukasadoru',m:'to govern',l:1},
+        {k:'束ねる',r:'tabaneru',m:'to bundle',l:1},
+        {k:'紡ぐ',r:'tsumugu',m:'to spin',l:1},
+        {k:'織る',r:'oru',m:'to weave',l:1},
+        {k:'彫る',r:'horu',m:'to carve',l:1},
+        {k:'鍛える',r:'kitaeru',m:'to forge',l:1},
+        {k:'研ぐ',r:'togu',m:'to sharpen',l:1},
+        {k:'磨く',r:'migaku',m:'to polish',l:1},
+        {k:'漲る',r:'minagiru',m:'to overflow',l:1},
+        {k:'滴る',r:'shitataru',m:'to drip',l:1},
+        {k:'煌めく',r:'kirameku',m:'to glitter',l:1},
+        {k:'轟く',r:'todoroku',m:'to roar',l:1},
+        {k:'囁く',r:'sasayaku',m:'to murmur',l:1},
+        {k:'佇む',r:'tatazumu',m:'to stand still',l:1},
+        {k:'彷徨う',r:'samayou',m:'to wander',l:1},
+        {k:'駆ける',r:'kakeru',m:'to gallop',l:1},
+        {k:'跳ねる',r:'haneru',m:'to bounce',l:1},
+        {k:'這う',r:'hau',m:'to crawl',l:1},
+        {k:'屈む',r:'kagamu',m:'to crouch',l:1},
+        {k:'仰ぐ',r:'aogu',m:'to look up',l:1},
+        {k:'俯く',r:'utsumuku',m:'to look down',l:1},
+        {k:'瞬く',r:'matataku',m:'to blink',l:1},
+        {k:'微笑む',r:'hohoemu',m:'to smile',l:1},
+        {k:'嘲る',r:'azakeru',m:'to ridicule',l:1},
+        {k:'蔑む',r:'sagesumu',m:'to despise',l:1},
+        {k:'妬む',r:'netamu',m:'to envy',l:1},
+        {k:'慈しむ',r:'itsukushimu',m:'to cherish',l:1},
+        {k:'労う',r:'negirau',m:'to appreciate',l:1},
+        {k:'諭す',r:'satosu',m:'to admonish',l:1},
+        {k:'嗜む',r:'tashinamu',m:'to enjoy',l:1},
+        {k:'拗ねる',r:'suneru',m:'to sulk',l:1},
+        {k:'甘える',r:'amaeru',m:'to be spoiled',l:1},
+        // Nouns
+        {k:'矜持',r:'kyouji',m:'pride',l:1},
+        {k:'威厳',r:'igen',m:'dignity',l:1},
+        {k:'風格',r:'fuukaku',m:'presence',l:1},
+        {k:'品格',r:'hinkaku',m:'elegance',l:1},
+        {k:'気概',r:'kigai',m:'spirit',l:1},
+        {k:'胆力',r:'tanryoku',m:'courage',l:1},
+        {k:'叡智',r:'eichi',m:'wisdom',l:1},
+        {k:'英知',r:'eichi',m:'great wisdom',l:1},
+        {k:'洞察',r:'dousatsu',m:'insight',l:1},
+        {k:'直感',r:'chokkan',m:'intuition',l:1},
+        {k:'悟り',r:'satori',m:'enlightenment',l:1},
+        {k:'境地',r:'kyouchi',m:'mental state',l:1},
+        {k:'心境',r:'shinkyou',m:'state of mind',l:1},
+        {k:'感慨',r:'kangai',m:'deep emotion',l:1},
+        {k:'余韻',r:'yoin',m:'afterglow',l:1},
+        {k:'風情',r:'fuzei',m:'elegance',l:1},
+        {k:'趣',r:'omomuki',m:'charm',l:1},
+        {k:'佇まい',r:'tatazumai',m:'demeanor',l:1},
+        {k:'名残',r:'nagori',m:'lingering',l:1},
+        {k:'面影',r:'omokage',m:'trace',l:1},
+        {k:'遺跡',r:'iseki',m:'ruins',l:1},
+        {k:'遺物',r:'ibutsu',m:'relic',l:1},
+        {k:'痕跡',r:'konseki',m:'trace',l:1},
+        {k:'軌跡',r:'kiseki',m:'trajectory',l:1},
+        {k:'奇跡',r:'kiseki',m:'miracle',l:1},
+        {k:'運命',r:'unmei',m:'fate',l:1},
+        {k:'宿命',r:'shukumei',m:'destiny',l:1},
+        {k:'因果',r:'inga',m:'cause and effect',l:1},
+        {k:'摂理',r:'setsuri',m:'providence',l:1},
+        {k:'真髄',r:'shinzui',m:'essence',l:1},
+        {k:'根幹',r:'konkan',m:'core',l:1},
+        {k:'礎',r:'ishizue',m:'cornerstone',l:1},
+        {k:'基軸',r:'kijiku',m:'axis',l:1},
+        {k:'枠組み',r:'wakugumi',m:'framework',l:1},
+        {k:'体系',r:'taikei',m:'system',l:1},
+        {k:'体制',r:'taisei',m:'regime',l:1},
+        {k:'統治',r:'touchi',m:'governance',l:1},
+        {k:'覇権',r:'haken',m:'hegemony',l:1},
+        {k:'権威',r:'keni',m:'authority',l:1},
+        {k:'威信',r:'ishin',m:'prestige',l:1},
+        {k:'名声',r:'meisei',m:'fame',l:1},
+        {k:'栄光',r:'eikou',m:'glory',l:1},
+        {k:'勝利',r:'shouri',m:'victory',l:1},
+        {k:'敗北',r:'haiboku',m:'defeat',l:1},
+        {k:'挫折',r:'zasetsu',m:'setback',l:1},
+        {k:'苦悩',r:'kunou',m:'anguish',l:1},
+        {k:'絶望',r:'zetsubou',m:'despair',l:1},
+        {k:'希望',r:'kibou',m:'hope',l:1},
+        {k:'救済',r:'kyuusai',m:'salvation',l:1},
+        {k:'贖罪',r:'shokuzai',m:'atonement',l:1},
+        {k:'復讐',r:'fukushuu',m:'revenge',l:1},
+        {k:'報復',r:'houfuku',m:'retaliation',l:1},
+        {k:'赦免',r:'shamen',m:'pardon',l:1},
+        {k:'寛容',r:'kanyou',m:'tolerance',l:1},
+        {k:'慈悲',r:'jihi',m:'compassion',l:1},
+        {k:'博愛',r:'hakuai',m:'philanthropy',l:1},
+        {k:'献身',r:'kenshin',m:'devotion',l:1},
+        {k:'犠牲',r:'gisei',m:'sacrifice',l:1},
+        {k:'代償',r:'daishou',m:'compensation',l:1},
+        {k:'葛藤',r:'kattou',m:'inner conflict',l:1},
+        {k:'苦渋',r:'kujuu',m:'bitterness',l:1},
+        {k:'困窮',r:'konkyuu',m:'poverty',l:1},
+        {k:'飢餓',r:'kiga',m:'starvation',l:1},
+        {k:'疫病',r:'ekibyou',m:'epidemic',l:1},
+        {k:'災厄',r:'saiyaku',m:'calamity',l:1},
+        {k:'天災',r:'tensai',m:'natural disaster',l:1},
+        {k:'人災',r:'jinsai',m:'man-made disaster',l:1},
+        {k:'復興',r:'fukkou',m:'reconstruction',l:1},
+        {k:'再生',r:'saisei',m:'rebirth',l:1},
+        {k:'創造',r:'souzou',m:'creation',l:1},
+        {k:'革新',r:'kakushin',m:'innovation',l:1},
+        {k:'先駆',r:'senku',m:'pioneer',l:1},
+        {k:'礎石',r:'soseki',m:'foundation stone',l:1},
+        {k:'金字塔',r:'kinjitou',m:'monument',l:1},
+        {k:'至宝',r:'shihou',m:'treasure',l:1},
+        {k:'秘宝',r:'hihou',m:'hidden treasure',l:1},
+        {k:'銘',r:'mei',m:'inscription',l:1},
+        {k:'碑',r:'hi',m:'monument',l:1},
+        {k:'祠',r:'hokora',m:'small shrine',l:1},
+        {k:'仏閣',r:'bukkaku',m:'Buddhist temple',l:1},
+        {k:'神社',r:'jinja',m:'Shinto shrine',l:1},
+        {k:'城郭',r:'joukaku',m:'castle',l:1},
+        {k:'要塞',r:'yousai',m:'fortress',l:1},
+        {k:'砦',r:'toride',m:'fort',l:1},
+        {k:'陣地',r:'jinchi',m:'encampment',l:1},
+        {k:'領土',r:'ryoudo',m:'territory',l:1},
+        {k:'疆域',r:'kyouiki',m:'domain',l:1},
+        {k:'辺境',r:'henkyou',m:'frontier',l:1},
+        {k:'僻地',r:'hekichi',m:'remote area',l:1},
+        {k:'秘境',r:'hikyou',m:'unexplored region',l:1},
+        {k:'桃源郷',r:'tougenkyou',m:'utopia',l:1},
+        {k:'楽園',r:'rakuen',m:'paradise',l:1},
+        {k:'浄土',r:'joudo',m:'pure land',l:1},
+        {k:'冥界',r:'meikai',m:'underworld',l:1},
+        {k:'幽玄',r:'yuugen',m:'mystery',l:1},
+        {k:'深淵',r:'shinnen',m:'abyss',l:1},
+        {k:'混沌',r:'konton',m:'chaos',l:1},
+        {k:'虚無',r:'kyomu',m:'nothingness',l:1},
+        {k:'永遠',r:'eien',m:'eternity',l:1},
+        {k:'刹那',r:'setsuna',m:'moment',l:1},
+        {k:'輪廻',r:'rinne',m:'reincarnation',l:1},
+        {k:'無常',r:'mujou',m:'impermanence',l:1},
+        {k:'諸行',r:'shogyou',m:'all things',l:1},
+        {k:'煩悩',r:'bonnou',m:'worldly desires',l:1},
+        {k:'涅槃',r:'nehan',m:'nirvana',l:1},
+        {k:'菩薩',r:'bosatsu',m:'bodhisattva',l:1},
+        {k:'極楽',r:'gokuraku',m:'paradise',l:1},
+        {k:'地獄',r:'jigoku',m:'hell',l:1},
+        {k:'鬼',r:'oni',m:'demon',l:1},
+        {k:'妖怪',r:'youkai',m:'supernatural creature',l:1},
+        {k:'幽霊',r:'yuurei',m:'ghost',l:1},
+        {k:'呪い',r:'noroi',m:'curse',l:1},
+        {k:'祝福',r:'shukufuku',m:'blessing',l:1},
+        {k:'啓示',r:'keiji',m:'revelation',l:1},
+        {k:'黙示',r:'mokushi',m:'apocalypse',l:1},
+        {k:'預言',r:'yogen',m:'prophecy',l:1},
+        {k:'伝説',r:'densetsu',m:'legend',l:1},
+        {k:'神話',r:'shinwa',m:'mythology',l:1},
+        {k:'寓話',r:'guuwa',m:'fable',l:1},
+        {k:'叙事詩',r:'jojishi',m:'epic poem',l:1},
+    ];
+
+    // =============================================
+    // SOUND ENGINE
+    // =============================================
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.connect(g);
+        g.connect(audioCtx.destination);
+
+        if (type === 'type') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.05);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+        } else if (type === 'error') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.15);
+            g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            g.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+        } else if (type === 'success') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+            g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        } else if (type === 'levelup') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.15);
+            osc.frequency.exponentialRampToValueAtTime(1600, audioCtx.currentTime + 0.3);
+            g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
         }
+    }
 
-        // --- Game State ---
-        const state = {
-            currentWord: null,
-            inputBuffer: "",
-            mistakesOnWord: 0,
-            streak: 0,
-            score: 0,
-            maxLevelUnlocked: 5,
-            history: [], // avoid immediate repeats
-            isTransitioning: false
-        };
+    // =============================================
+    // GAME STATE
+    // =============================================
+    const state = {
+        currentWord: null,
+        inputBuffer: '',
+        mistakesOnWord: 0,
+        streak: 0,
+        bestStreak: 0,
+        score: 0,
+        // Adaptive difficulty: 5.0 = easiest (N5), 1.0 = hardest (N1)
+        difficulty: 5.0,
+        // Track every word shown during current streak (no repeats)
+        streakWords: new Set(),
+        isTransitioning: false,
+        isMobile: false
+    };
 
-        // --- DOM Elements ---
-        const els = {
-            kanji: document.getElementById('kanji-display'),
-            typed: document.getElementById('typed-part'),
-            remaining: document.getElementById('remaining-part'),
-            hint: document.getElementById('hint-display'),
-            meaningBox: document.getElementById('meaning-display'),
-            meaningText: document.getElementById('meaning-text'),
-            score: document.getElementById('score-counter'),
-            streak: document.getElementById('streak-counter'),
-            badge: document.getElementById('level-badge'),
-            inputBox: document.getElementById('input-feedback-box'),
-            status: document.getElementById('status-message'),
-            keyboard: document.getElementById('virtual-keyboard'),
-            hiddenInput: document.getElementById('hidden-input')
-        };
+    // =============================================
+    // DOM ELEMENTS
+    // =============================================
+    const els = {
+        kanji: document.getElementById('kanji-display'),
+        typed: document.getElementById('typed-part'),
+        remaining: document.getElementById('remaining-part'),
+        hint: document.getElementById('hint-display'),
+        meaningBox: document.getElementById('meaning-display'),
+        meaningText: document.getElementById('meaning-text'),
+        score: document.getElementById('score-counter'),
+        streak: document.getElementById('streak-counter'),
+        best: document.getElementById('best-counter'),
+        badge: document.getElementById('level-badge'),
+        diffBar: document.getElementById('diff-bar'),
+        inputBox: document.getElementById('input-feedback-box'),
+        status: document.getElementById('status-message'),
+        keyboard: document.getElementById('virtual-keyboard'),
+        hiddenInput: document.getElementById('hidden-input')
+    };
 
-        // --- Keyboard Setup ---
-        const rows = [
-            "qwertyuiop",
-            "asdfghjkl",
-            "zxcvbnm"
-        ];
+    // =============================================
+    // MOBILE DETECTION & KEYBOARD SETUP
+    // =============================================
+    function detectMobile() {
+        state.isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.innerWidth < 768;
+    }
+    detectMobile();
+    window.addEventListener('resize', detectMobile);
 
-        function initKeyboard() {
-            rows.forEach(row => {
-                const rowDiv = document.createElement('div');
-                rowDiv.className = 'flex justify-center w-full space-x-1 mb-1';
-                row.split('').forEach(char => {
-                    const btn = document.createElement('button');
-                    btn.textContent = char;
-                    btn.className = 'key-btn bg-gray-700 text-white font-bold py-3 px-1 rounded flex-1 text-lg uppercase select-none active:bg-blue-600 focus:outline-none touch-manipulation';
-                    // Wider hit area for touch
-                    btn.style.minWidth = '8%'; 
-                    btn.addEventListener('touchstart', (e) => {
-                        e.preventDefault(); // Prevent focus loss
-                        handleInput(char);
-                        btn.classList.add('bg-blue-500');
-                        setTimeout(() => btn.classList.remove('bg-blue-500'), 150);
-                    });
-                     // Mouse fallback
-                    btn.addEventListener('mousedown', (e) => {
-                         e.preventDefault();
-                         handleInput(char);
-                    });
-                    rowDiv.appendChild(btn);
+    const kbRows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+
+    function initKeyboard() {
+        els.keyboard.innerHTML = '';
+        kbRows.forEach((row, ri) => {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'flex justify-center w-full gap-[3px] mb-[3px]';
+            // Add left spacer on middle & bottom rows for stagger
+            if (ri === 1) {
+                const sp = document.createElement('div');
+                sp.className = 'w-[2%] shrink-0';
+                rowDiv.appendChild(sp);
+            }
+            if (ri === 2) {
+                const sp = document.createElement('div');
+                sp.className = 'w-[5%] shrink-0';
+                rowDiv.appendChild(sp);
+            }
+            row.split('').forEach(ch => {
+                const btn = document.createElement('button');
+                btn.textContent = ch;
+                btn.dataset.key = ch;
+                btn.className = 'key-btn bg-gray-700 text-white font-bold rounded-md flex-1 text-base uppercase select-none focus:outline-none touch-manipulation leading-none py-[10px]';
+                btn.style.maxWidth = '10%';
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    handleInput(ch);
+                    btn.classList.add('active');
+                    setTimeout(() => btn.classList.remove('active'), 120);
                 });
-                els.keyboard.appendChild(rowDiv);
+                btn.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    handleInput(ch);
+                });
+                rowDiv.appendChild(btn);
             });
-        }
-
-        // --- Game Logic ---
-
-        function getWeightedRandomWord() {
-            // Filter words based on unlocked levels
-            let pool = wordDatabase.filter(w => w.l >= state.maxLevelUnlocked);
-            
-            // If pool is too small, fallback
-            if (pool.length < 5) {
-                pool = wordDatabase.filter(w => w.l >= state.maxLevelUnlocked);
+            if (ri === 2) {
+                const sp = document.createElement('div');
+                sp.className = 'w-[5%] shrink-0';
+                rowDiv.appendChild(sp);
             }
-
-            // Exclude last 5 words to prevent repeats
-            pool = pool.filter(w => !state.history.includes(w.k));
-
-            if (pool.length === 0) pool = wordDatabase; // Fallback
-
-            const word = pool[Math.floor(Math.random() * pool.length)];
-            
-            // Update history
-            state.history.push(word.k);
-            if (state.history.length > 10) state.history.shift();
-
-            return word;
-        }
-
-        function nextLevel() {
-            // Unlock next level every 10 streak
-            if (state.streak > 0 && state.streak % 10 === 0 && state.maxLevelUnlocked > 2) {
-                state.maxLevelUnlocked--;
-                els.badge.textContent = `N${state.maxLevelUnlocked} Unlocked`;
-                els.badge.classList.add('animate-pulse', 'bg-purple-600');
-                setTimeout(() => els.badge.classList.remove('animate-pulse', 'bg-purple-600'), 2000);
+            if (ri === 1) {
+                const sp = document.createElement('div');
+                sp.className = 'w-[2%] shrink-0';
+                rowDiv.appendChild(sp);
             }
+            els.keyboard.appendChild(rowDiv);
+        });
+    }
+
+    // Prevent system keyboard on mobile
+    document.body.addEventListener('touchstart', (e) => {
+        // Don't focus hidden input on mobile
+        if (state.isMobile) {
+            e.target.blur();
+            document.activeElement?.blur();
+        }
+    }, { passive: true });
+
+    // Prevent any input from gaining focus on mobile
+    document.addEventListener('focusin', (e) => {
+        if (state.isMobile && e.target === els.hiddenInput) {
+            e.target.blur();
+        }
+    });
+
+    // =============================================
+    // ADAPTIVE DIFFICULTY
+    // =============================================
+    function getDifficultyLevel() {
+        // Returns the JLPT level to target (integer 1-5)
+        return Math.max(1, Math.min(5, Math.round(state.difficulty)));
+    }
+
+    function makeDifficultyHarder() {
+        // Gradually increase difficulty (lower number = harder)
+        state.difficulty = Math.max(1.0, state.difficulty - 0.4);
+        updateDifficultyDisplay();
+    }
+
+    function makeDifficultyEasier() {
+        // Jump back easier
+        state.difficulty = Math.min(5.0, state.difficulty + 1.0);
+        updateDifficultyDisplay();
+    }
+
+    function updateDifficultyDisplay() {
+        const pct = ((5.0 - state.difficulty) / 4.0) * 100;
+        els.diffBar.style.width = pct + '%';
+        const lvl = getDifficultyLevel();
+        els.badge.textContent = 'N' + lvl;
+
+        if (pct < 25) { els.diffBar.className = 'diff-bar h-full bg-green-500 rounded-full'; }
+        else if (pct < 50) { els.diffBar.className = 'diff-bar h-full bg-blue-500 rounded-full'; }
+        else if (pct < 75) { els.diffBar.className = 'diff-bar h-full bg-purple-500 rounded-full'; }
+        else { els.diffBar.className = 'diff-bar h-full bg-red-500 rounded-full'; }
+    }
+
+    // =============================================
+    // WORD SELECTION (no repeats during streak)
+    // =============================================
+    function pickWord() {
+        const targetLvl = getDifficultyLevel();
+
+        // Build pool: prioritize target level, include adjacent
+        let pool = wordDatabase.filter(w => {
+            if (w.l === targetLvl) return true;
+            if (w.l === targetLvl + 1 || w.l === targetLvl - 1) return true;
+            return false;
+        });
+
+        // Weight: target level words appear 3x more
+        let weighted = [];
+        pool.forEach(w => {
+            const weight = (w.l === targetLvl) ? 3 : 1;
+            for (let i = 0; i < weight; i++) weighted.push(w);
+        });
+
+        // Remove words already seen in this streak
+        let filtered = weighted.filter(w => !state.streakWords.has(w.k));
+
+        // If we've exhausted most words, allow repeats from non-recent
+        if (filtered.length < 5) {
+            // Clear old streak words but keep last 20
+            if (state.streakWords.size > 20) {
+                const arr = [...state.streakWords];
+                state.streakWords = new Set(arr.slice(-20));
+            }
+            filtered = weighted.filter(w => !state.streakWords.has(w.k));
         }
 
-        function loadWord() {
-            nextLevel();
-            state.currentWord = getWeightedRandomWord();
-            state.inputBuffer = "";
-            state.mistakesOnWord = 0;
-            state.isTransitioning = false;
+        // Final fallback
+        if (filtered.length === 0) {
+            state.streakWords.clear();
+            filtered = weighted.length > 0 ? weighted : wordDatabase;
+        }
 
-            // Update UI
-            els.kanji.textContent = state.currentWord.k;
-            // Remove previous animations
-            els.kanji.parentElement.classList.remove('animate-pop');
-            void els.kanji.parentElement.offsetWidth; // Trigger reflow
-            els.kanji.parentElement.classList.add('animate-pop');
+        // Pick random from filtered (deduplicate to avoid weighted bias in selection)
+        const unique = [...new Set(filtered.map(w => w.k))];
+        const pick = unique[Math.floor(Math.random() * unique.length)];
+        return wordDatabase.find(w => w.k === pick);
+    }
 
-            renderInput();
-            
-            // Reset hint
-            els.hint.style.opacity = '0';
-            
-            // FIX: Reset meaning display properly
-            els.meaningBox.classList.remove('animate-slide-up');
-            els.meaningBox.style.opacity = '0';
-            // Wait slightly for opacity transition before clearing text to avoid flickering
-            setTimeout(() => {
-                if(!state.isTransitioning) els.meaningText.textContent = "...";
-            }, 300);
+    // =============================================
+    // GAME LOGIC
+    // =============================================
+    function loadWord() {
+        const word = pickWord();
+        state.currentWord = word;
+        state.inputBuffer = '';
+        state.mistakesOnWord = 0;
+        state.isTransitioning = false;
+        state.streakWords.add(word.k);
 
-            els.inputBox.classList.remove('border-red-500', 'border-green-500');
+        // Update kanji display
+        els.kanji.textContent = word.k;
+        const card = els.kanji.parentElement;
+        card.classList.remove('animate-pop');
+        void card.offsetWidth;
+        card.classList.add('animate-pop');
+
+        renderInput();
+
+        // Reset hint
+        els.hint.style.opacity = '0';
+
+        // Reset meaning
+        els.meaningBox.classList.remove('animate-slide-up');
+        els.meaningBox.style.opacity = '0';
+        setTimeout(() => {
+            if (!state.isTransitioning) els.meaningText.textContent = '...';
+        }, 300);
+
+        els.inputBox.classList.remove('border-red-500', 'border-green-500');
+        els.inputBox.classList.add('border-gray-600');
+        els.status.textContent = 'Type the reading';
+        els.status.className = 'h-5 text-xs text-gray-500 font-medium';
+    }
+
+    function renderInput() {
+        const target = state.currentWord.r;
+        const typed = state.inputBuffer;
+        els.typed.textContent = typed;
+        els.remaining.textContent = '_'.repeat(target.length - typed.length);
+    }
+
+    function triggerShake() {
+        els.inputBox.classList.add('animate-shake', 'border-red-500');
+        playSound('error');
+        setTimeout(() => {
+            els.inputBox.classList.remove('animate-shake', 'border-red-500');
             els.inputBox.classList.add('border-gray-600');
-            els.status.textContent = "Type the reading";
-            els.status.className = "h-6 text-sm text-gray-500 font-medium";
-        }
+        }, 300);
+    }
 
-        function renderInput() {
-            const target = state.currentWord.r;
-            const typed = state.inputBuffer;
-            
-            els.typed.textContent = typed;
-            
-            // MASKED INPUT: Show underscores instead of the answer
-            const remainingLength = target.length - typed.length;
-            els.remaining.textContent = "_".repeat(remainingLength);
-        }
+    function handleInput(char) {
+        if (state.isTransitioning) return;
 
-        function triggerShake() {
-            els.inputBox.classList.add('animate-shake', 'border-red-500');
-            playSound('error');
-            setTimeout(() => {
-                els.inputBox.classList.remove('animate-shake', 'border-red-500');
-                els.inputBox.classList.add('border-gray-600');
-            }, 300);
-        }
+        const target = state.currentWord.r;
+        const nextIdx = state.inputBuffer.length;
+        const expected = target[nextIdx];
+        char = char.toLowerCase();
 
-        function handleInput(char) {
-            if (state.isTransitioning) return;
+        if (char === expected) {
+            state.inputBuffer += char;
+            playSound('type');
+            els.hint.style.opacity = '0';
+            renderInput();
 
-            const target = state.currentWord.r;
-            const nextCharIndex = state.inputBuffer.length;
-            const expectedChar = target[nextCharIndex];
+            if (state.inputBuffer === target) {
+                handleSuccess();
+            }
+        } else {
+            state.mistakesOnWord++;
+            triggerShake();
 
-            // Normalize input
-            char = char.toLowerCase();
-
-            if (char === expectedChar) {
-                // Correct
-                state.inputBuffer += char;
-                playSound('type');
-                
-                // Hide hint if they got it right
-                els.hint.style.opacity = '0';
-                
-                renderInput();
-
-                if (state.inputBuffer === target) {
-                    // Word Complete
-                    handleSuccess();
-                }
-            } else {
-                // Incorrect
-                state.mistakesOnWord++;
-                state.streak = 0;
-                updateStats();
-                triggerShake();
-                
-                // Hint Logic: Only show next letter after 3 mistakes
-                if (state.mistakesOnWord >= 3) {
-                    showHint();
+            if (state.mistakesOnWord >= 3) {
+                showHint();
+                // Difficulty drops on hint (player is struggling)
+                if (state.mistakesOnWord === 3) {
+                    makeDifficultyEasier();
+                    // Reset streak
+                    state.streak = 0;
+                    state.streakWords.clear();
+                    state.streakWords.add(state.currentWord.k);
+                    updateStats();
                 }
             }
         }
+    }
 
-        function showHint() {
-            const nextChar = state.currentWord.r[state.inputBuffer.length];
-            // Explicitly show only the next character
-            els.hint.textContent = `Hint: Next is "${nextChar.toUpperCase()}"`;
-            els.hint.style.opacity = '1';
-            els.status.textContent = "Hint unlocked!";
-            els.status.classList.add('text-yellow-500');
-        }
+    function showHint() {
+        const nextChar = state.currentWord.r[state.inputBuffer.length];
+        els.hint.textContent = `Hint: "${nextChar.toUpperCase()}"`;
+        els.hint.style.opacity = '1';
+        els.status.textContent = 'Hint unlocked!';
+        els.status.className = 'h-5 text-xs text-yellow-500 font-medium';
+    }
 
-        function handleSuccess() {
-            state.isTransitioning = true;
-            playSound('success');
-            
-            // Fill in the full word just in case (replace underscores)
-            els.remaining.textContent = ""; 
-            
-            // Visuals
-            els.inputBox.classList.remove('border-gray-600');
-            els.inputBox.classList.add('border-green-500');
-            els.meaningText.textContent = state.currentWord.m;
-            
-            // FIX: Add animation for meaning
-            els.meaningBox.classList.add('animate-slide-up');
-            els.meaningBox.style.opacity = '1';
+    function handleSuccess() {
+        state.isTransitioning = true;
+        playSound('success');
 
-            // Score Logic
-            state.score += 10 + (state.streak * 2);
+        els.remaining.textContent = '';
+        els.inputBox.classList.remove('border-gray-600');
+        els.inputBox.classList.add('border-green-500');
+        els.meaningText.textContent = state.currentWord.m;
+        els.meaningBox.classList.add('animate-slide-up');
+        els.meaningBox.style.opacity = '1';
+
+        // Only count as streak if no hints were needed
+        if (state.mistakesOnWord < 3) {
             state.streak++;
-            updateStats();
+            state.score += 10 + (state.streak * 2);
 
-            // Next Word Delay
-            setTimeout(() => {
-                loadWord();
-            }, 1200);
-        }
-
-        function updateStats() {
-            els.score.textContent = state.score;
-            els.streak.textContent = state.streak;
-            
-            // Badge color based on streak
-            if (state.streak > 20) els.streak.className = "text-xl font-bold text-yellow-400";
-            else if (state.streak > 10) els.streak.className = "text-xl font-bold text-blue-400";
-            else els.streak.className = "text-xl font-bold text-green-400";
-        }
-
-        // --- Event Listeners ---
-
-        document.addEventListener('keydown', (e) => {
-            // Keep focus on hidden input for mobile software keyboard quirks
-            els.hiddenInput.focus();
-
-            if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
-                handleInput(e.key);
+            // Every 5 streak, increase difficulty
+            if (state.streak % 5 === 0) {
+                makeDifficultyHarder();
+                playSound('levelup');
+                els.badge.classList.add('animate-pulse');
+                setTimeout(() => els.badge.classList.remove('animate-pulse'), 1500);
             }
-        });
+        } else {
+            // Got it with hints — small score, no streak bonus
+            state.score += 5;
+        }
 
-        // Focus handling for mobile
-        document.body.addEventListener('click', () => {
-            els.hiddenInput.focus();
-        });
+        if (state.streak > state.bestStreak) {
+            state.bestStreak = state.streak;
+        }
 
-        // Init
-        initKeyboard();
-        loadWord();
-        els.hiddenInput.focus();
+        updateStats();
 
+        setTimeout(() => loadWord(), 1000);
+    }
+
+    function updateStats() {
+        els.score.textContent = state.score;
+        els.streak.textContent = state.streak;
+        els.best.textContent = state.bestStreak;
+
+        if (state.streak >= 20) els.streak.className = 'text-lg font-bold text-yellow-400 leading-tight';
+        else if (state.streak >= 10) els.streak.className = 'text-lg font-bold text-blue-400 leading-tight';
+        else els.streak.className = 'text-lg font-bold text-green-400 leading-tight';
+    }
+
+    // =============================================
+    // EVENT LISTENERS
+    // =============================================
+    document.addEventListener('keydown', (e) => {
+        if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+            handleInput(e.key);
+            // Highlight virtual key if visible
+            const vk = document.querySelector(`[data-key="${e.key.toLowerCase()}"]`);
+            if (vk) {
+                vk.classList.add('active');
+                setTimeout(() => vk.classList.remove('active'), 120);
+            }
+        }
+    });
+
+    // Desktop: focus hidden input for key capture (only if not mobile)
+    if (!state.isMobile) {
+        document.body.addEventListener('click', () => els.hiddenInput.focus());
+    }
+
+    // =============================================
+    // INIT
+    // =============================================
+    initKeyboard();
+    updateDifficultyDisplay();
+    loadWord();
+    if (!state.isMobile) els.hiddenInput.focus();
+
+    console.log(`Kanji Flow loaded: ${wordDatabase.length} words across N5–N1`);
     </script>
 </body>
 </html>
