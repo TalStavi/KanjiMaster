@@ -64,15 +64,13 @@
 
         /* Hidden inputs for native keyboard */
         .game-inp {
-            position: absolute;
-            left: -9999px;
-            top: 0;
             width: 1px;
             height: 1px;
             opacity: 0;
             font-size: 16px; /* prevents iOS zoom */
             border: none;
             outline: none;
+            padding: 0;
             background: transparent;
             color: transparent;
             caret-color: transparent;
@@ -142,8 +140,10 @@
     </div>
 
     <!-- Two hidden inputs — swapped each word to reset keyboard prediction without flicker -->
-    <input type="text" id="game-input-a" class="game-inp" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="latin" enterkeyhint="next">
-    <input type="text" id="game-input-b" class="game-inp" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="latin" enterkeyhint="next">
+    <form autocomplete="off" onsubmit="return false" style="position:absolute;left:-9999px;top:0">
+        <input type="text" id="game-input-a" class="game-inp" name="game-nonce-a" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="latin" enterkeyhint="go" data-lpignore="true" data-1p-ignore="true" data-form-type="other" aria-autocomplete="none" role="presentation">
+        <input type="text" id="game-input-b" class="game-inp" name="game-nonce-b" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="latin" enterkeyhint="go" data-lpignore="true" data-1p-ignore="true" data-form-type="other" aria-autocomplete="none" role="presentation">
+    </form>
 
     <script>
     // =============================================
