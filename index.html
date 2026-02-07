@@ -1456,18 +1456,13 @@
             state.mistakesOnChar++;
             triggerShake();
 
-            // After 3 wrong guesses on a single character, trigger hint or fail
+            // After 2 wrong guesses on a character: show hint (streak safe)
+            // After 3 wrong guesses on a character: fail and move on
             if (state.mistakesOnChar >= 3) {
-                state.hintsUsed++;
                 state.mistakesOnChar = 0;
-
-                if (state.hintsUsed === 1) {
-                    // First hint: show the next letter, keep going
-                    showHint();
-                } else {
-                    // Second hint: player failed — show full answer, move on
-                    handleFail();
-                }
+                handleFail();
+            } else if (state.mistakesOnChar >= 2) {
+                showHint();
             }
         }
     }
@@ -1476,7 +1471,7 @@
         const nextChar = state.currentWord.r[state.inputBuffer.length];
         els.hint.textContent = `Hint: "${nextChar.toUpperCase()}"`;
         els.hint.style.opacity = '1';
-        els.status.textContent = 'Hint! One more and you fail';
+        els.status.textContent = 'Hint! One more wrong = fail';
         els.status.className = 'h-5 text-xs text-yellow-500 font-medium';
     }
 
@@ -1524,21 +1519,12 @@
         els.meaningBox.classList.add('animate-slide-up');
         els.meaningBox.style.opacity = '1';
 
-        // If they used a hint, smaller score but streak continues
-        // (they can only reach success with 0 or 1 hint; 2 hints = fail)
-        if (state.hintsUsed === 0) {
-            state.streak++;
-            state.score += 10 + (state.streak * 2);
-        } else {
-            // Got it with 1 hint — small score, streak still resets
-            state.streak = 0;
-            state.streakWords.clear();
-            makeDifficultyEasier();
-            state.score += 5;
-        }
+        // Success — streak continues (hints don't break streak)
+        state.streak++;
+        state.score += 10 + (state.streak * 2);
 
         // Every 5 streak, increase difficulty
-        if (state.streak > 0 && state.streak % 5 === 0) {
+        if (state.streak % 5 === 0) {
             makeDifficultyHarder();
             playSound('levelup');
             els.badge.classList.add('animate-pulse');
