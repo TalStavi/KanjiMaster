@@ -1409,6 +1409,8 @@
         difficulty: 5.0,
         // Track every word shown during current streak (no repeats)
         streakWords: new Set(),
+        // Words we failed: kanji -> { word, correct: 0 }. Removed after 3 correct answers.
+        failedWords: new Map(),
         isTransitioning: false
     };
 
@@ -1582,9 +1584,33 @@
             filtered = weighted.length > 0 ? weighted : wordDatabase;
         }
 
+        // Boost failed words: add extra copies so they appear much more often
+        // (only if they're in the filtered pool, i.e. not blocked by streak)
+        const failedKanji = new Set(state.failedWords.keys());
+        let boosted = [...filtered];
+        if (failedKanji.size > 0) {
+            // Add failed words that aren't blocked by streak
+            const failedInPool = wordDatabase.filter(w =>
+                failedKanji.has(w.k) && !state.streakWords.has(w.k)
+            );
+            // Give failed words 8x extra weight
+            failedInPool.forEach(w => {
+                for (let i = 0; i < 8; i++) boosted.push(w);
+            });
+        }
+
         // Pick random (deduplicate so weighting only affects likelihood)
-        const unique = [...new Set(filtered.map(w => w.k))];
-        const pick = unique[Math.floor(Math.random() * unique.length)];
+        const unique = [...new Set(boosted.map(w => w.k))];
+        // Weighted random: count occurrences as weight
+        const weightMap = {};
+        boosted.forEach(w => { weightMap[w.k] = (weightMap[w.k] || 0) + 1; });
+        const totalWeight = Object.values(weightMap).reduce((a, b) => a + b, 0);
+        let rand = Math.random() * totalWeight;
+        let pick = unique[0];
+        for (const k of unique) {
+            rand -= weightMap[k];
+            if (rand <= 0) { pick = k; break; }
+        }
         return wordDatabase.find(w => w.k === pick);
     }
 
@@ -1707,6 +1733,11 @@
         els.status.textContent = `Answer: ${state.currentWord.r}`;
         els.status.className = 'h-5 text-xs text-red-400 font-bold';
 
+        // Add to failed words list (needs 3 correct answers to clear)
+        if (!state.failedWords.has(state.currentWord.k)) {
+            state.failedWords.set(state.currentWord.k, { word: state.currentWord, correct: 0 });
+        }
+
         // Reset streak & difficulty
         state.streak = 0;
         state.streakWords.clear();
@@ -1730,6 +1761,15 @@
         els.meaningText.textContent = state.currentWord.m;
         els.meaningBox.classList.add('animate-slide-up');
         els.meaningBox.style.opacity = '1';
+
+        // If this word was in the failed list, track correct answers
+        if (state.failedWords.has(state.currentWord.k)) {
+            const entry = state.failedWords.get(state.currentWord.k);
+            entry.correct++;
+            if (entry.correct >= 3) {
+                state.failedWords.delete(state.currentWord.k);
+            }
+        }
 
         // Success — streak continues (hints don't break streak)
         state.streak++;
