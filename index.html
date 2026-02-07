@@ -1209,7 +1209,8 @@
     const state = {
         currentWord: null,
         inputBuffer: '',
-        mistakesOnWord: 0,
+        mistakesOnChar: 0,  // mistakes on the current character
+        hintsUsed: 0,       // how many different letters needed a hint
         streak: 0,
         bestStreak: 0,
         score: 0,
@@ -1368,7 +1369,8 @@
         const word = pickWord();
         state.currentWord = word;
         state.inputBuffer = '';
-        state.mistakesOnWord = 0;
+        state.mistakesOnChar = 0;
+        state.hintsUsed = 0;
         state.isTransitioning = false;
         state.streakWords.add(word.k);
 
@@ -1427,6 +1429,7 @@
 
         if (char === expected) {
             state.inputBuffer += char;
+            state.mistakesOnChar = 0; // reset per-char mistakes
             playSound('type');
             els.hint.style.opacity = '0';
             renderInput();
@@ -1435,19 +1438,20 @@
                 handleSuccess();
             }
         } else {
-            state.mistakesOnWord++;
+            state.mistakesOnChar++;
             triggerShake();
 
-            if (state.mistakesOnWord >= 3) {
-                showHint();
-                // Difficulty drops on hint (player is struggling)
-                if (state.mistakesOnWord === 3) {
-                    makeDifficultyEasier();
-                    // Reset streak
-                    state.streak = 0;
-                    state.streakWords.clear();
-                    state.streakWords.add(state.currentWord.k);
-                    updateStats();
+            // After 3 wrong guesses on a single character, trigger hint or fail
+            if (state.mistakesOnChar >= 3) {
+                state.hintsUsed++;
+                state.mistakesOnChar = 0;
+
+                if (state.hintsUsed === 1) {
+                    // First hint: show the next letter, keep going
+                    showHint();
+                } else {
+                    // Second hint: player failed — show full answer, move on
+                    handleFail();
                 }
             }
         }
@@ -1457,8 +1461,41 @@
         const nextChar = state.currentWord.r[state.inputBuffer.length];
         els.hint.textContent = `Hint: "${nextChar.toUpperCase()}"`;
         els.hint.style.opacity = '1';
-        els.status.textContent = 'Hint unlocked!';
+        els.status.textContent = 'Hint! One more and you fail';
         els.status.className = 'h-5 text-xs text-yellow-500 font-medium';
+    }
+
+    function handleFail() {
+        state.isTransitioning = true;
+        playSound('error');
+
+        // Show the full answer
+        els.typed.textContent = '';
+        els.remaining.textContent = state.currentWord.r;
+        els.remaining.className = 'text-red-400';
+        els.inputBox.classList.remove('border-gray-600');
+        els.inputBox.classList.add('border-red-500');
+        els.hint.style.opacity = '0';
+
+        // Show meaning
+        els.meaningText.textContent = state.currentWord.m;
+        els.meaningBox.classList.add('animate-slide-up');
+        els.meaningBox.style.opacity = '1';
+
+        els.status.textContent = `Answer: ${state.currentWord.r}`;
+        els.status.className = 'h-5 text-xs text-red-400 font-bold';
+
+        // Reset streak & difficulty
+        state.streak = 0;
+        state.streakWords.clear();
+        makeDifficultyEasier();
+        updateStats();
+
+        // Move to next word after a longer delay so player can read the answer
+        setTimeout(() => {
+            els.remaining.className = 'text-gray-600'; // reset color
+            loadWord();
+        }, 2500);
     }
 
     function handleSuccess() {
@@ -1472,21 +1509,25 @@
         els.meaningBox.classList.add('animate-slide-up');
         els.meaningBox.style.opacity = '1';
 
-        // Only count as streak if no hints were needed
-        if (state.mistakesOnWord < 3) {
+        // If they used a hint, smaller score but streak continues
+        // (they can only reach success with 0 or 1 hint; 2 hints = fail)
+        if (state.hintsUsed === 0) {
             state.streak++;
             state.score += 10 + (state.streak * 2);
-
-            // Every 5 streak, increase difficulty
-            if (state.streak % 5 === 0) {
-                makeDifficultyHarder();
-                playSound('levelup');
-                els.badge.classList.add('animate-pulse');
-                setTimeout(() => els.badge.classList.remove('animate-pulse'), 1500);
-            }
         } else {
-            // Got it with hints — small score, no streak bonus
+            // Got it with 1 hint — small score, streak still resets
+            state.streak = 0;
+            state.streakWords.clear();
+            makeDifficultyEasier();
             state.score += 5;
+        }
+
+        // Every 5 streak, increase difficulty
+        if (state.streak > 0 && state.streak % 5 === 0) {
+            makeDifficultyHarder();
+            playSound('levelup');
+            els.badge.classList.add('animate-pulse');
+            setTimeout(() => els.badge.classList.remove('animate-pulse'), 1500);
         }
 
         if (state.streak > state.bestStreak) {
