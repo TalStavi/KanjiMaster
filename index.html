@@ -1648,8 +1648,13 @@
 
         els.inputBox.classList.remove('border-red-500', 'border-green-500');
         els.inputBox.classList.add('border-gray-600');
-        els.status.textContent = 'Type the reading';
-        els.status.className = 'h-5 text-xs text-gray-500 font-medium';
+        if (state.failedWords.has(word.k)) {
+            els.status.textContent = 'Repeat Word!';
+            els.status.className = 'h-5 text-xs text-orange-400 font-bold';
+        } else {
+            els.status.textContent = 'Type the reading';
+            els.status.className = 'h-5 text-xs text-gray-500 font-medium';
+        }
 
         // Swap to the other input to reset keyboard prediction
         swapInput();
