@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kanji Flow | Learn Japanese</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@700&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #1a1a1a;
+            color: #e5e5e5;
+            overflow: hidden; /* Prevent scrolling on mobile */
+            touch-action: manipulation;
+        }
+        .kanji-font {
+            font-family: 'Noto Serif JP', serif;
+        }
+        .jp-font {
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+        
+        /* Custom Animations */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .animate-shake {
+            animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0.95); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.5s ease-out forwards;
+        }
+
+        /* Cursor blinking */
+        .cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: #4ade80;
+            margin-left: 2px;
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        /* Virtual Keyboard Keys */
+        .key-btn {
+            box-shadow: 0 4px 0 #374151;
+            transition: all 0.1s;
+        }
+        .key-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #374151;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col items-center justify-between p-4 bg-gradient-to-b from-gray-900 to-gray-800">
+
+    <!-- Header / Stats -->
+    <div class="w-full max-w-2xl flex justify-between items-center mb-4 z-10">
+        <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold tracking-widest text-gray-500 uppercase">Level</span>
+            <span id="level-badge" class="px-2 py-1 bg-blue-600 rounded text-xs font-bold text-white">N5</span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="text-center">
+                <p class="text-xs text-gray-500 uppercase">Streak</p>
+                <p id="streak-counter" class="text-xl font-bold text-green-400">0</p>
+            </div>
+            <div class="text-center">
+                <p class="text-xs text-gray-500 uppercase">Score</p>
+                <p id="score-counter" class="text-xl font-bold text-white">0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Game Area -->
+    <div id="game-container" class="flex-1 flex flex-col justify-center items-center w-full max-w-lg relative">
+        
+        <!-- Kanji Card -->
+        <!-- FIX: Increased margin-bottom (mb-24) to prevent Meaning overlap -->
+        <div class="relative w-full aspect-square max-h-[300px] max-w-[300px] flex items-center justify-center bg-gray-800 rounded-3xl shadow-2xl border border-gray-700 mb-24 animate-pop">
+            <!-- Background Decoration -->
+            <div class="absolute inset-0 opacity-10 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiZmZmZmZiIvPjwvc3ZnPg==')]"></div>
+            
+            <h1 id="kanji-display" class="kanji-font text-6xl md:text-7xl text-white z-10 select-none text-center px-4 leading-tight"></h1>
+            
+            <!-- Hint Overlay (Hidden initially) -->
+            <div id="hint-display" class="absolute -top-12 bg-yellow-600/90 text-white px-4 py-1 rounded-full text-lg jp-font shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none">
+                Hint
+            </div>
+
+            <!-- Meaning Display (Shown on completion) -->
+            <!-- Positioned absolutely at the bottom -->
+            <div id="meaning-display" class="absolute -bottom-20 w-full text-center opacity-0 transition-opacity duration-300">
+                <p class="text-gray-400 text-sm uppercase tracking-wide">Meaning</p>
+                <p id="meaning-text" class="text-xl text-blue-300 font-bold capitalize">...</p>
+            </div>
+        </div>
+
+        <!-- Input Display -->
+        <div class="w-full text-center mb-4 relative h-16 flex items-center justify-center">
+            <div id="input-feedback-box" class="text-3xl md:text-4xl font-mono tracking-widest space-x-1 border-b-2 border-gray-600 pb-2 px-4 min-w-[200px] transition-colors duration-200">
+                <span id="typed-part" class="text-green-400"></span><span id="cursor" class="cursor"></span><span id="remaining-part" class="text-gray-600"></span>
+            </div>
+        </div>
+
+        <!-- Instructional / Feedback Text -->
+        <p id="status-message" class="h-6 text-sm text-gray-500 font-medium animate-pulse">Type the reading</p>
+
+    </div>
+
+    <!-- Virtual Keyboard (Mobile Only - visible on small screens) -->
+    <div id="virtual-keyboard" class="w-full max-w-2xl grid grid-cols-10 gap-1 pb-2 md:hidden">
+        <!-- QWERTY Layout generated by JS -->
+    </div>
+
+    <!-- Hidden Input for Desktop Focus -->
+    <input type="text" id="hidden-input" class="absolute opacity-0 top-0 left-0 h-0 w-0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+
+    <script>
+        // --- Game Data: Common Vocabulary ---
+        // Format: k=Kanji Word, r=Romaji, m=Meaning, l=JLPT Level
+        const wordDatabase = [
+            // N5 (Basic Vocabulary)
+            {k:'食べる', r:'taberu', m:'to eat', l:5},
+            {k:'飲む', r:'nomu', m:'to drink', l:5},
+            {k:'行く', r:'iku', m:'to go', l:5},
+            {k:'見る', r:'miru', m:'to see', l:5},
+            {k:'高い', r:'takai', m:'expensive/tall', l:5},
+            {k:'新しい', r:'atarashii', m:'new', l:5},
+            {k:'古い', r:'furui', m:'old', l:5},
+            {k:'大きい', r:'ookii', m:'big', l:5},
+            {k:'小さい', r:'chiisai', m:'small', l:5},
+            {k:'日本語', r:'nihongo', m:'Japanese language', l:5},
+            {k:'先生', r:'sensei', m:'teacher', l:5},
+            {k:'学生', r:'gakusei', m:'student', l:5},
+            {k:'学校', r:'gakkou', m:'school', l:5},
+            {k:'名前', r:'namae', m:'name', l:5},
+            {k:'時間', r:'jikan', m:'time', l:5},
+            {k:'電車', r:'densha', m:'train', l:5},
+            {k:'今日', r:'kyou', m:'today', l:5},
+            {k:'明日', r:'ashita', m:'tomorrow', l:5},
+            {k:'昨日', r:'kinou', m:'yesterday', l:5},
+            {k:'勉強', r:'benkyou', m:'study', l:5},
+            {k:'買い物', r:'kaimono', m:'shopping', l:5},
+            {k:'仕事', r:'shigoto', m:'work', l:5},
+            {k:'友達', r:'tomodachi', m:'friend', l:5},
+
+            // N4 (Intermediate Vocabulary)
+            {k:'家族', r:'kazoku', m:'family', l:4},
+            {k:'兄弟', r:'kyoudai', m:'siblings', l:4},
+            {k:'手紙', r:'tegami', m:'letter', l:4},
+            {k:'歌う', r:'utau', m:'to sing', l:4},
+            {k:'泳ぐ', r:'oyogu', m:'to swim', l:4},
+            {k:'終わる', r:'owaru', m:'to end', l:4},
+            {k:'帰る', r:'kaeru', m:'to return home', l:4},
+            {k:'起きる', r:'okiru', m:'to wake up', l:4},
+            {k:'寝る', r:'neru', m:'to sleep', l:4},
+            {k:'面白い', r:'omoshiroi', m:'interesting', l:4},
+            {k:'難しい', r:'muzukashii', m:'difficult', l:4},
+            {k:'忙しい', r:'isogashii', m:'busy', l:4},
+            {k:'天気', r:'tenki', m:'weather', l:4},
+            {k:'電話', r:'denwa', m:'telephone', l:4},
+            {k:'料理', r:'ryouri', m:'cooking', l:4},
+            {k:'旅行', r:'ryokou', m:'travel', l:4},
+            {k:'病院', r:'byouin', m:'hospital', l:4},
+            {k:'意味', r:'imi', m:'meaning', l:4},
+            {k:'意見', r:'iken', m:'opinion', l:4},
+
+            // N3 (Advanced/Compound Vocabulary)
+            {k:'経験', r:'keiken', m:'experience', l:3},
+            {k:'説明', r:'setsumei', m:'explanation', l:3},
+            {k:'準備', r:'junbi', m:'preparation', l:3},
+            {k:'約束', r:'yakusoku', m:'promise', l:3},
+            {k:'紹介', r:'shoukai', m:'introduction', l:3},
+            {k:'相談', r:'soudan', m:'consultation', l:3},
+            {k:'連絡', r:'renraku', m:'contact', l:3},
+            {k:'結婚', r:'kekkon', m:'marriage', l:3},
+            {k:'計画', r:'keikaku', m:'plan', l:3},
+            {k:'経済', r:'keizai', m:'economy', l:3},
+            {k:'政治', r:'seiji', m:'politics', l:3},
+            {k:'産業', r:'sangyou', m:'industry', l:3},
+            {k:'製品', r:'seihin', m:'product', l:3},
+            {k:'番組', r:'bangumi', m:'TV program', l:3},
+            {k:'優勝', r:'yuushou', m:'victory/championship', l:3},
+            
+            // N2/N1 (Complex)
+            {k:'環境', r:'kankyou', m:'environment', l:2},
+            {k:'意識', r:'ishiki', m:'consciousness', l:2},
+            {k:'解決', r:'kaiketsu', m:'solution', l:2},
+            {k:'議論', r:'giron', m:'discussion', l:2}
+        ];
+
+        // --- Sound Engine (Synthesized) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (type === 'type') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.05);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.05);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.15);
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+            } else if (type === 'success') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        // --- Game State ---
+        const state = {
+            currentWord: null,
+            inputBuffer: "",
+            mistakesOnWord: 0,
+            streak: 0,
+            score: 0,
+            maxLevelUnlocked: 5,
+            history: [], // avoid immediate repeats
+            isTransitioning: false
+        };
+
+        // --- DOM Elements ---
+        const els = {
+            kanji: document.getElementById('kanji-display'),
+            typed: document.getElementById('typed-part'),
+            remaining: document.getElementById('remaining-part'),
+            hint: document.getElementById('hint-display'),
+            meaningBox: document.getElementById('meaning-display'),
+            meaningText: document.getElementById('meaning-text'),
+            score: document.getElementById('score-counter'),
+            streak: document.getElementById('streak-counter'),
+            badge: document.getElementById('level-badge'),
+            inputBox: document.getElementById('input-feedback-box'),
+            status: document.getElementById('status-message'),
+            keyboard: document.getElementById('virtual-keyboard'),
+            hiddenInput: document.getElementById('hidden-input')
+        };
+
+        // --- Keyboard Setup ---
+        const rows = [
+            "qwertyuiop",
+            "asdfghjkl",
+            "zxcvbnm"
+        ];
+
+        function initKeyboard() {
+            rows.forEach(row => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'flex justify-center w-full space-x-1 mb-1';
+                row.split('').forEach(char => {
+                    const btn = document.createElement('button');
+                    btn.textContent = char;
+                    btn.className = 'key-btn bg-gray-700 text-white font-bold py-3 px-1 rounded flex-1 text-lg uppercase select-none active:bg-blue-600 focus:outline-none touch-manipulation';
+                    // Wider hit area for touch
+                    btn.style.minWidth = '8%'; 
+                    btn.addEventListener('touchstart', (e) => {
+                        e.preventDefault(); // Prevent focus loss
+                        handleInput(char);
+                        btn.classList.add('bg-blue-500');
+                        setTimeout(() => btn.classList.remove('bg-blue-500'), 150);
+                    });
+                     // Mouse fallback
+                    btn.addEventListener('mousedown', (e) => {
+                         e.preventDefault();
+                         handleInput(char);
+                    });
+                    rowDiv.appendChild(btn);
+                });
+                els.keyboard.appendChild(rowDiv);
+            });
+        }
+
+        // --- Game Logic ---
+
+        function getWeightedRandomWord() {
+            // Filter words based on unlocked levels
+            let pool = wordDatabase.filter(w => w.l >= state.maxLevelUnlocked);
+            
+            // If pool is too small, fallback
+            if (pool.length < 5) {
+                pool = wordDatabase.filter(w => w.l >= state.maxLevelUnlocked);
+            }
+
+            // Exclude last 5 words to prevent repeats
+            pool = pool.filter(w => !state.history.includes(w.k));
+
+            if (pool.length === 0) pool = wordDatabase; // Fallback
+
+            const word = pool[Math.floor(Math.random() * pool.length)];
+            
+            // Update history
+            state.history.push(word.k);
+            if (state.history.length > 10) state.history.shift();
+
+            return word;
+        }
+
+        function nextLevel() {
+            // Unlock next level every 10 streak
+            if (state.streak > 0 && state.streak % 10 === 0 && state.maxLevelUnlocked > 2) {
+                state.maxLevelUnlocked--;
+                els.badge.textContent = `N${state.maxLevelUnlocked} Unlocked`;
+                els.badge.classList.add('animate-pulse', 'bg-purple-600');
+                setTimeout(() => els.badge.classList.remove('animate-pulse', 'bg-purple-600'), 2000);
+            }
+        }
+
+        function loadWord() {
+            nextLevel();
+            state.currentWord = getWeightedRandomWord();
+            state.inputBuffer = "";
+            state.mistakesOnWord = 0;
+            state.isTransitioning = false;
+
+            // Update UI
+            els.kanji.textContent = state.currentWord.k;
+            // Remove previous animations
+            els.kanji.parentElement.classList.remove('animate-pop');
+            void els.kanji.parentElement.offsetWidth; // Trigger reflow
+            els.kanji.parentElement.classList.add('animate-pop');
+
+            renderInput();
+            
+            // Reset hint
+            els.hint.style.opacity = '0';
+            
+            // FIX: Reset meaning display properly
+            els.meaningBox.classList.remove('animate-slide-up');
+            els.meaningBox.style.opacity = '0';
+            // Wait slightly for opacity transition before clearing text to avoid flickering
+            setTimeout(() => {
+                if(!state.isTransitioning) els.meaningText.textContent = "...";
+            }, 300);
+
+            els.inputBox.classList.remove('border-red-500', 'border-green-500');
+            els.inputBox.classList.add('border-gray-600');
+            els.status.textContent = "Type the reading";
+            els.status.className = "h-6 text-sm text-gray-500 font-medium";
+        }
+
+        function renderInput() {
+            const target = state.currentWord.r;
+            const typed = state.inputBuffer;
+            
+            els.typed.textContent = typed;
+            
+            // MASKED INPUT: Show underscores instead of the answer
+            const remainingLength = target.length - typed.length;
+            els.remaining.textContent = "_".repeat(remainingLength);
+        }
+
+        function triggerShake() {
+            els.inputBox.classList.add('animate-shake', 'border-red-500');
+            playSound('error');
+            setTimeout(() => {
+                els.inputBox.classList.remove('animate-shake', 'border-red-500');
+                els.inputBox.classList.add('border-gray-600');
+            }, 300);
+        }
+
+        function handleInput(char) {
+            if (state.isTransitioning) return;
+
+            const target = state.currentWord.r;
+            const nextCharIndex = state.inputBuffer.length;
+            const expectedChar = target[nextCharIndex];
+
+            // Normalize input
+            char = char.toLowerCase();
+
+            if (char === expectedChar) {
+                // Correct
+                state.inputBuffer += char;
+                playSound('type');
+                
+                // Hide hint if they got it right
+                els.hint.style.opacity = '0';
+                
+                renderInput();
+
+                if (state.inputBuffer === target) {
+                    // Word Complete
+                    handleSuccess();
+                }
+            } else {
+                // Incorrect
+                state.mistakesOnWord++;
+                state.streak = 0;
+                updateStats();
+                triggerShake();
+                
+                // Hint Logic: Only show next letter after 3 mistakes
+                if (state.mistakesOnWord >= 3) {
+                    showHint();
+                }
+            }
+        }
+
+        function showHint() {
+            const nextChar = state.currentWord.r[state.inputBuffer.length];
+            // Explicitly show only the next character
+            els.hint.textContent = `Hint: Next is "${nextChar.toUpperCase()}"`;
+            els.hint.style.opacity = '1';
+            els.status.textContent = "Hint unlocked!";
+            els.status.classList.add('text-yellow-500');
+        }
+
+        function handleSuccess() {
+            state.isTransitioning = true;
+            playSound('success');
+            
+            // Fill in the full word just in case (replace underscores)
+            els.remaining.textContent = ""; 
+            
+            // Visuals
+            els.inputBox.classList.remove('border-gray-600');
+            els.inputBox.classList.add('border-green-500');
+            els.meaningText.textContent = state.currentWord.m;
+            
+            // FIX: Add animation for meaning
+            els.meaningBox.classList.add('animate-slide-up');
+            els.meaningBox.style.opacity = '1';
+
+            // Score Logic
+            state.score += 10 + (state.streak * 2);
+            state.streak++;
+            updateStats();
+
+            // Next Word Delay
+            setTimeout(() => {
+                loadWord();
+            }, 1200);
+        }
+
+        function updateStats() {
+            els.score.textContent = state.score;
+            els.streak.textContent = state.streak;
+            
+            // Badge color based on streak
+            if (state.streak > 20) els.streak.className = "text-xl font-bold text-yellow-400";
+            else if (state.streak > 10) els.streak.className = "text-xl font-bold text-blue-400";
+            else els.streak.className = "text-xl font-bold text-green-400";
+        }
+
+        // --- Event Listeners ---
+
+        document.addEventListener('keydown', (e) => {
+            // Keep focus on hidden input for mobile software keyboard quirks
+            els.hiddenInput.focus();
+
+            if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+                handleInput(e.key);
+            }
+        });
+
+        // Focus handling for mobile
+        document.body.addEventListener('click', () => {
+            els.hiddenInput.focus();
+        });
+
+        // Init
+        initKeyboard();
+        loadWord();
+        els.hiddenInput.focus();
+
+    </script>
+</body>
+</html>
