@@ -1397,9 +1397,6 @@
     // =============================================
     // GAME STATE
     // =============================================
-    // Seen words live in memory only — resets each session so returning
-    // players get a fresh learning cycle
-
     const state = {
         currentWord: null,
         inputBuffer: '',
@@ -1414,12 +1411,17 @@
         streakWords: new Set(),
         // Words we failed: kanji -> { word, correct: 0 }. Removed after 3 correct answers.
         failedWords: new Map(),
-        // All words the player has ever seen (persisted in localStorage)
-        seenWords: new Set(),
-        // Whether the current word is a first-encounter (teaching mode)
-        isNewWord: false,
-        // How many new (teaching) words shown in a row — cap at 2 then force a test
-        newWordsInRow: 0,
+        // Working set: the ~5 words being actively drilled
+        // kanji -> { word, correct: 0 }
+        workingSet: new Map(),
+        // Words that graduated (answered 3x correctly) — won't be re-taught
+        graduatedWords: new Set(),
+        // Target working set size (scales with difficulty level)
+        workingSetTarget: 5,
+        // Whether current word is a first encounter (not in workingSet or graduated)
+        isFirstEncounter: false,
+        // Whether current first-encounter is in teaching mode (vs blind test)
+        isTeaching: false,
         isTransitioning: false
     };
 
@@ -1538,7 +1540,10 @@
     function updateDifficultyDisplay() {
         const pct = ((5.0 - state.difficulty) / 4.0) * 100;
         els.diffBar.style.width = pct + '%';
-        // Badge is set by loadWord() to show the actual word's level
+
+        // Scale working set target with difficulty: N5=5, N4=6, N3=7, N2-N1=8
+        const lvl = getDifficultyLevel();
+        state.workingSetTarget = lvl >= 5 ? 5 : lvl >= 4 ? 6 : lvl >= 3 ? 7 : 8;
 
         if (pct < 25) { els.diffBar.className = 'diff-bar h-full bg-green-500 rounded-full'; }
         else if (pct < 50) { els.diffBar.className = 'diff-bar h-full bg-blue-500 rounded-full'; }
@@ -1547,94 +1552,101 @@
     }
 
     // =============================================
-    // WORD SELECTION (no repeats during streak)
+    // WORD SELECTION — Working Set System
     // =============================================
-    function pickWord() {
+
+    // Helper: pick a new word from the level pool (not in workingSet or graduated)
+    function pickNewWord() {
         const d = state.difficulty;
-        const mainLvl = getDifficultyLevel(); // current "home" level (ceil)
+        const mainLvl = getDifficultyLevel();
         const harderLvl = mainLvl - 1;
-
-        // How far into this level? 0 = just arrived, ~1 = about to advance
-        // e.g. d=4.8 → progress=0.2, d=4.2 → progress=0.8
         const progress = mainLvl - d;
-
-        // Only start mixing harder words after 60% progress into current level
-        // This means pure N5 for the first ~20 correct words, then gradually N4 appears
         const mixRatio = (harderLvl >= 1) ? Math.max(0, (progress - 0.6) / 0.4) : 0;
 
-        // Build weighted pool with smooth blending
-        let weighted = [];
-        const mainWords = wordDatabase.filter(w => w.l === mainLvl);
-        const hardWords = (harderLvl >= 1) ? wordDatabase.filter(w => w.l === harderLvl) : [];
-
-        // Main level always present; harder level gradually mixed in
-        const mainWeight = Math.max(1, Math.round((1 - mixRatio) * 10));
-        const hardWeight = Math.round(mixRatio * 10);
-
-        mainWords.forEach(w => { for (let i = 0; i < mainWeight; i++) weighted.push(w); });
-        if (hardWeight > 0) {
-            hardWords.forEach(w => { for (let i = 0; i < hardWeight; i++) weighted.push(w); });
+        let pool = wordDatabase.filter(w => w.l === mainLvl);
+        if (mixRatio > 0 && harderLvl >= 1) {
+            const hardPool = wordDatabase.filter(w => w.l === harderLvl);
+            // Mix: for every 10 main words, add proportional harder words
+            const hardCount = Math.round(hardPool.length * mixRatio * 0.3);
+            pool = pool.concat(hardPool.slice(0, hardCount));
         }
 
-        // After 2 new words in a row, prefer testing on previously-seen words
-        // This prevents endless teaching mode and creates a learn-then-test rhythm
-        const mustTest = state.newWordsInRow >= 2;
-        if (mustTest) {
-            const seenOnly = weighted.filter(w => state.seenWords.has(w.k));
-            // Only restrict if there are seen words available (not blocked by streak)
-            const seenNotInStreak = seenOnly.filter(w => !state.streakWords.has(w.k));
-            if (seenNotInStreak.length > 0) {
-                weighted = seenOnly;
-            }
-            // else: no seen words available to test, allow new words
-        }
+        // Exclude words already in working set or graduated
+        pool = pool.filter(w => !state.workingSet.has(w.k) && !state.graduatedWords.has(w.k));
 
-        // Remove words already seen in this streak
-        let filtered = weighted.filter(w => !state.streakWords.has(w.k));
-
-        // If we've exhausted most words, allow repeats from non-recent
-        if (filtered.length < 5) {
-            if (state.streakWords.size > 20) {
-                const arr = [...state.streakWords];
-                state.streakWords = new Set(arr.slice(-20));
-            }
-            filtered = weighted.filter(w => !state.streakWords.has(w.k));
-        }
-
-        // Final fallback
-        if (filtered.length === 0) {
-            state.streakWords.clear();
-            filtered = weighted.length > 0 ? weighted : wordDatabase;
-        }
-
-        // Boost failed words: add extra copies so they appear much more often
-        // (only if they're in the filtered pool, i.e. not blocked by streak)
-        const failedKanji = new Set(state.failedWords.keys());
-        let boosted = [...filtered];
-        if (failedKanji.size > 0) {
-            // Add failed words that aren't blocked by streak
-            const failedInPool = wordDatabase.filter(w =>
-                failedKanji.has(w.k) && !state.streakWords.has(w.k)
+        if (pool.length === 0) {
+            // All words at this level exhausted — allow graduated words to recycle
+            pool = wordDatabase.filter(w =>
+                (w.l === mainLvl || (mixRatio > 0 && w.l === harderLvl)) &&
+                !state.workingSet.has(w.k)
             );
-            // Give failed words 8x extra weight
-            failedInPool.forEach(w => {
-                for (let i = 0; i < 8; i++) boosted.push(w);
-            });
+        }
+        if (pool.length === 0) return null;
+        return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    // Helper: weighted random pick from a weight map { kanji: weight }
+    function weightedPick(weightMap) {
+        const keys = Object.keys(weightMap);
+        const total = keys.reduce((s, k) => s + weightMap[k], 0);
+        if (total === 0) return null;
+        let rand = Math.random() * total;
+        for (const k of keys) {
+            rand -= weightMap[k];
+            if (rand <= 0) return k;
+        }
+        return keys[keys.length - 1];
+    }
+
+    function pickWord() {
+        // --- Priority 1: Pick from working set (if it has testable words) ---
+        if (state.workingSet.size > 0) {
+            const weights = {};
+            for (const [kanji, entry] of state.workingSet) {
+                if (state.streakWords.has(kanji)) continue; // skip streak repeats
+                // Weight by how far from graduation: least-known words appear most
+                let w = Math.max(1, 3 - entry.correct);
+                // Boost failed words even more
+                if (state.failedWords.has(kanji)) w += 5;
+                weights[kanji] = w;
+            }
+
+            // If all working set words are blocked by streak, trim old streak entries
+            if (Object.keys(weights).length === 0 && state.streakWords.size > 0) {
+                const arr = [...state.streakWords];
+                state.streakWords = new Set(arr.slice(-Math.floor(arr.length / 2)));
+                // Retry
+                for (const [kanji, entry] of state.workingSet) {
+                    if (state.streakWords.has(kanji)) continue;
+                    let w = Math.max(1, 3 - entry.correct);
+                    if (state.failedWords.has(kanji)) w += 5;
+                    weights[kanji] = w;
+                }
+            }
+
+            if (Object.keys(weights).length > 0) {
+                // Decide: test from working set, or introduce a new word?
+                // Introduce new word if working set is below target AND no failed words pending
+                const hasRoom = state.workingSet.size < state.workingSetTarget;
+                const noFails = state.failedWords.size === 0;
+                // 30% chance to introduce new word when there's room and player isn't struggling
+                if (hasRoom && noFails && Math.random() < 0.3) {
+                    const newWord = pickNewWord();
+                    if (newWord) return newWord;
+                }
+                // Otherwise test from working set
+                const kanji = weightedPick(weights);
+                if (kanji) return state.workingSet.get(kanji).word;
+            }
         }
 
-        // Pick random (deduplicate so weighting only affects likelihood)
-        const unique = [...new Set(boosted.map(w => w.k))];
-        // Weighted random: count occurrences as weight
-        const weightMap = {};
-        boosted.forEach(w => { weightMap[w.k] = (weightMap[w.k] || 0) + 1; });
-        const totalWeight = Object.values(weightMap).reduce((a, b) => a + b, 0);
-        let rand = Math.random() * totalWeight;
-        let pick = unique[0];
-        for (const k of unique) {
-            rand -= weightMap[k];
-            if (rand <= 0) { pick = k; break; }
-        }
-        return wordDatabase.find(w => w.k === pick);
+        // --- Priority 2: Working set needs filling — introduce a new word ---
+        const newWord = pickNewWord();
+        if (newWord) return newWord;
+
+        // --- Fallback: all words exhausted, pick any ---
+        state.streakWords.clear();
+        return wordDatabase[Math.floor(Math.random() * wordDatabase.length)];
     }
 
     // =============================================
@@ -1648,12 +1660,15 @@
         state.mistakesOnWord = 0;
         state.isTransitioning = false;
 
-        // Detect first encounter
-        state.isNewWord = !state.seenWords.has(word.k);
+        // Determine word mode: working set test, first-encounter teaching, or first-encounter blind test
+        const inWorkingSet = state.workingSet.has(word.k);
+        state.isFirstEncounter = !inWorkingSet && !state.graduatedWords.has(word.k);
+        // Teaching mode for first encounters when player is warming up (streak < 5)
+        // Blind test (no teaching) when player is on a roll (streak >= 5)
+        state.isTeaching = state.isFirstEncounter && state.streak < 5;
 
-        // Only add to streak no-repeat set for real tests, not teaching mode.
-        // This lets a just-taught word immediately appear as a test.
-        if (!state.isNewWord) {
+        // Only add to streak no-repeat for working set tests (not teaching/blind-first-encounter)
+        if (inWorkingSet) {
             state.streakWords.add(word.k);
         }
 
@@ -1670,11 +1685,10 @@
         // Reset hint
         els.hint.style.opacity = '0';
 
-        els.inputBox.classList.remove('border-red-500', 'border-green-500');
+        els.inputBox.classList.remove('border-red-500', 'border-green-500', 'border-cyan-500');
 
-        if (state.isNewWord) {
-            // === TEACHING MODE ===
-            // Show the reading and meaning immediately so the player can learn
+        if (state.isTeaching) {
+            // === TEACHING MODE (first encounter, streak < 5) ===
             els.inputBox.classList.add('border-cyan-500');
             els.meaningText.textContent = word.m;
             els.meaningBox.classList.add('animate-slide-up');
@@ -1684,16 +1698,18 @@
             els.status.textContent = 'New Word! Type to learn';
             els.status.className = 'h-5 text-xs text-cyan-400 font-bold';
         } else {
-            // === NORMAL TEST MODE ===
+            // === TEST MODE (working set word, graduated word, or blind first-encounter) ===
             els.inputBox.classList.add('border-gray-600');
-            // Reset meaning
             els.meaningBox.classList.remove('animate-slide-up');
             els.meaningBox.style.opacity = '0';
             setTimeout(() => {
                 if (!state.isTransitioning) els.meaningText.textContent = '...';
             }, 300);
 
-            if (state.failedWords.has(word.k)) {
+            if (state.isFirstEncounter) {
+                els.status.textContent = 'New Word!';
+                els.status.className = 'h-5 text-xs text-cyan-400 font-bold';
+            } else if (state.failedWords.has(word.k)) {
                 els.status.textContent = 'Repeat Word!';
                 els.status.className = 'h-5 text-xs text-orange-400 font-bold';
             } else {
@@ -1718,7 +1734,7 @@
         playSound('error');
         setTimeout(() => {
             els.inputBox.classList.remove('animate-shake', 'border-red-500');
-            els.inputBox.classList.add('border-gray-600');
+            els.inputBox.classList.add(state.isTeaching ? 'border-cyan-500' : 'border-gray-600');
         }, 300);
     }
 
@@ -1732,21 +1748,21 @@
 
         if (char === expected) {
             state.inputBuffer += char;
-            state.mistakesOnChar = 0; // reset per-char mistakes
+            state.mistakesOnChar = 0;
             playSound('type');
-            if (!state.isNewWord) els.hint.style.opacity = '0'; // keep hint visible for new words
+            if (!state.isTeaching) els.hint.style.opacity = '0'; // keep hint visible in teaching mode
             renderInput();
 
             if (state.inputBuffer === target) {
-                if (state.isNewWord) {
-                    handleNewWordComplete();
+                if (state.isTeaching) {
+                    handleTeachingComplete();
                 } else {
                     handleSuccess();
                 }
             }
         } else {
-            // New words: just shake, no fail/hint tracking (answer is visible)
-            if (state.isNewWord) {
+            // Teaching mode: just shake, no fail tracking (answer is visible)
+            if (state.isTeaching) {
                 triggerShake();
                 return;
             }
@@ -1755,11 +1771,11 @@
             state.mistakesOnWord++;
             triggerShake();
 
-            // 3 total mistakes anywhere in the word → fail
+            // 3 total mistakes → fail
             if (state.mistakesOnWord >= 3) {
                 handleFail();
             }
-            // 2 mistakes on the same letter → show hint
+            // 2 mistakes on same letter → show hint
             else if (state.mistakesOnChar >= 2) {
                 showHint();
             }
@@ -1778,48 +1794,56 @@
         state.isTransitioning = true;
         playSound('error');
 
+        const word = state.currentWord;
+
         // Show the full answer
         els.typed.textContent = '';
-        els.remaining.textContent = state.currentWord.r;
+        els.remaining.textContent = word.r;
         els.remaining.className = 'text-red-400';
-        els.inputBox.classList.remove('border-gray-600');
+        els.inputBox.classList.remove('border-gray-600', 'border-cyan-500');
         els.inputBox.classList.add('border-red-500');
         els.hint.style.opacity = '0';
 
         // Show meaning
-        els.meaningText.textContent = state.currentWord.m;
+        els.meaningText.textContent = word.m;
         els.meaningBox.classList.add('animate-slide-up');
         els.meaningBox.style.opacity = '1';
 
-        els.status.textContent = `Answer: ${state.currentWord.r}`;
+        els.status.textContent = `Answer: ${word.r}`;
         els.status.className = 'h-5 text-xs text-red-400 font-bold';
 
-        // Add to failed words list (needs 3 correct answers to clear)
-        // New words (teaching mode) never enter the failed queue
-        if (!state.isNewWord && !state.failedWords.has(state.currentWord.k)) {
-            state.failedWords.set(state.currentWord.k, { word: state.currentWord, correct: 0 });
+        if (state.isFirstEncounter) {
+            // First-encounter grace: no streak penalty, add to working set
+            state.workingSet.set(word.k, { word: word, correct: 0 });
+            // Don't reset streak — it was their first time seeing this word
+        } else {
+            // Known word fail: reset working set progress, add to failed queue
+            if (state.workingSet.has(word.k)) {
+                state.workingSet.get(word.k).correct = 0;
+            }
+            if (!state.failedWords.has(word.k)) {
+                state.failedWords.set(word.k, { word: word, correct: 0 });
+            }
+            // Reset streak & difficulty
+            state.streak = 0;
+            state.streakWords.clear();
+            makeDifficultyEasier();
+            updateStats();
         }
 
-        // Reset streak & difficulty
-        state.streak = 0;
-        state.streakWords.clear();
-        makeDifficultyEasier();
-        updateStats();
-
-        // Move to next word after a longer delay so player can read the answer
+        // Move to next word after a delay
         setTimeout(() => {
-            els.remaining.className = 'text-gray-600'; // reset color
+            els.remaining.className = 'text-gray-600';
             loadWord();
         }, 2500);
     }
 
-    function handleNewWordComplete() {
+    function handleTeachingComplete() {
         state.isTransitioning = true;
         playSound('type'); // softer sound for learning
 
-        // Mark as seen and persist
-        state.seenWords.add(state.currentWord.k);
-        state.newWordsInRow++;
+        // Add to working set with correct=0
+        state.workingSet.set(state.currentWord.k, { word: state.currentWord, correct: 0 });
 
         // Visual feedback
         els.remaining.textContent = '';
@@ -1829,37 +1853,47 @@
         els.status.className = 'h-5 text-xs text-cyan-400 font-bold';
 
         // No streak/score change — this was practice
-        // Move to next word after a brief pause
         setTimeout(() => loadWord(), 1000);
     }
 
     function handleSuccess() {
         state.isTransitioning = true;
-        state.newWordsInRow = 0; // reset — player just completed a real test
         playSound('success');
+
+        const word = state.currentWord;
 
         els.remaining.textContent = '';
         els.inputBox.classList.remove('border-gray-600');
         els.inputBox.classList.add('border-green-500');
-        els.meaningText.textContent = state.currentWord.m;
+        els.meaningText.textContent = word.m;
         els.meaningBox.classList.add('animate-slide-up');
         els.meaningBox.style.opacity = '1';
 
-        // Mark as seen (in case it wasn't already)
-        if (!state.seenWords.has(state.currentWord.k)) {
-            state.seenWords.add(state.currentWord.k);
-        }
-
-        // If this word was in the failed list, track correct answers
-        if (state.failedWords.has(state.currentWord.k)) {
-            const entry = state.failedWords.get(state.currentWord.k);
+        // --- Working set tracking ---
+        if (state.isFirstEncounter) {
+            // Blind test success: player already knew this word — fast track
+            state.workingSet.set(word.k, { word: word, correct: 2 });
+        } else if (state.workingSet.has(word.k)) {
+            // Working set word: increment correct count
+            const entry = state.workingSet.get(word.k);
             entry.correct++;
+            // Graduate at 3 correct answers
             if (entry.correct >= 3) {
-                state.failedWords.delete(state.currentWord.k);
+                state.workingSet.delete(word.k);
+                state.graduatedWords.add(word.k);
             }
         }
 
-        // Success — streak continues (hints don't break streak)
+        // Track failed words progress
+        if (state.failedWords.has(word.k)) {
+            const entry = state.failedWords.get(word.k);
+            entry.correct++;
+            if (entry.correct >= 3) {
+                state.failedWords.delete(word.k);
+            }
+        }
+
+        // Streak & score
         state.streak++;
         state.score += 10 + (state.streak * 2);
 
