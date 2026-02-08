@@ -1569,12 +1569,13 @@
             pool = pool.concat(hardPool.slice(0, hardCount));
         }
 
-        // Exclude words already in wordPool
-        pool = pool.filter(w => !state.wordPool.has(w.k));
+        // Exclude words already in wordPool or queued for teaching
+        const queued = new Set(state.teachingQueue.map(w => w.k));
+        pool = pool.filter(w => !state.wordPool.has(w.k) && !queued.has(w.k));
 
         if (pool.length === 0) {
             // All words at this level exhausted — allow any unseen level word
-            pool = wordDatabase.filter(w => !state.wordPool.has(w.k));
+            pool = wordDatabase.filter(w => !state.wordPool.has(w.k) && !queued.has(w.k));
         }
         if (pool.length === 0) return null;
         return pool[Math.floor(Math.random() * pool.length)];
