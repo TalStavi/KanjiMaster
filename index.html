@@ -1604,7 +1604,7 @@
 
     // Pick a word from wordPool using chance-weighted random selection
     // Avoids picking the same word twice in a row (rerolls up to 5 times)
-    // After 3 known words in a row, forces a learning word (chance > 0.5)
+    // After 2 known words in a row, forces a learning word (chance > 0.5)
     function pickWord() {
         if (state.wordPool.size === 0) return null;
         const lastKanji = state.currentWord ? state.currentWord.k : null;
