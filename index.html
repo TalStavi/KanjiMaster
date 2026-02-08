@@ -1410,6 +1410,8 @@
         isTeaching: false,
         // Track last known count for difficulty progression
         lastKnownMilestone: 0,
+        // How many "known" words (chance <= 0.5) shown in a row
+        knownInARow: 0,
         isTransitioning: false
     };
 
@@ -1602,10 +1604,33 @@
 
     // Pick a word from wordPool using chance-weighted random selection
     // Avoids picking the same word twice in a row (rerolls up to 5 times)
+    // After 3 known words in a row, forces a learning word (chance > 0.5)
     function pickWord() {
         if (state.wordPool.size === 0) return null;
         const lastKanji = state.currentWord ? state.currentWord.k : null;
         const canReroll = state.wordPool.size > 1;
+
+        // After 3 known words in a row, try to force a learning word
+        const forceLearning = state.knownInARow >= 3;
+        if (forceLearning) {
+            const learningWords = [];
+            for (const [kanji, entry] of state.wordPool) {
+                if (entry.chance > 0.5 && kanji !== lastKanji) {
+                    learningWords.push(entry);
+                }
+            }
+            if (learningWords.length > 0) {
+                // Weighted pick among learning words
+                let total = learningWords.reduce((s, e) => s + e.chance, 0);
+                let rand = Math.random() * total;
+                for (const entry of learningWords) {
+                    rand -= entry.chance;
+                    if (rand <= 0) return entry.word;
+                }
+                return learningWords[learningWords.length - 1].word;
+            }
+            // No learning words available — fall through to normal pick
+        }
 
         for (let attempt = 0; attempt < 5; attempt++) {
             let total = 0;
@@ -1807,6 +1832,7 @@
             entry.chance = Math.min(4.0, entry.chance * 2);
         }
 
+        state.knownInARow = 0;
         makeDifficultyEasier();
         updateStats();
 
@@ -1859,6 +1885,14 @@
                 // Clean answer: halve the chance
                 entry.chance = entry.chance / 2;
             }
+        }
+
+        // Track known-in-a-row for forcing learning words
+        const entryAfter = state.wordPool.get(word.k);
+        if (entryAfter && entryAfter.chance <= 0.5) {
+            state.knownInARow++;
+        } else {
+            state.knownInARow = 0;
         }
 
         // Check if this pushed us to a new known-words milestone for difficulty
