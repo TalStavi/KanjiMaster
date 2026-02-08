@@ -1611,7 +1611,7 @@
         const canReroll = state.wordPool.size > 1;
 
         // After 3 known words in a row, try to force a learning word
-        const forceLearning = state.knownInARow >= 3;
+        const forceLearning = state.knownInARow >= 2;
         if (forceLearning) {
             const learningWords = [];
             for (const [kanji, entry] of state.wordPool) {
