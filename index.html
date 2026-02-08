@@ -1876,23 +1876,23 @@
         els.meaningBox.classList.add('animate-slide-up');
         els.meaningBox.style.opacity = '1';
 
+        // Track known-in-a-row BEFORE updating chance
+        // (we want to know if the word was already mastered when it was shown)
+        const entryBefore = state.wordPool.get(word.k);
+        if (entryBefore && entryBefore.chance <= 0.5) {
+            state.knownInARow++;
+        } else {
+            state.knownInARow = 0;
+        }
+
         // Update chance in wordPool
-        if (state.wordPool.has(word.k)) {
-            const entry = state.wordPool.get(word.k);
+        if (entryBefore) {
             if (state.hintUsed) {
                 // Hint used: chance stays the same
             } else {
                 // Clean answer: halve the chance
-                entry.chance = entry.chance / 2;
+                entryBefore.chance = entryBefore.chance / 2;
             }
-        }
-
-        // Track known-in-a-row for forcing learning words
-        const entryAfter = state.wordPool.get(word.k);
-        if (entryAfter && entryAfter.chance <= 0.5) {
-            state.knownInARow++;
-        } else {
-            state.knownInARow = 0;
         }
 
         // Check if this pushed us to a new known-words milestone for difficulty
