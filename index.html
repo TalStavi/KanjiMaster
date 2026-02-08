@@ -1756,6 +1756,7 @@
 
             state.mistakesOnChar++;
             state.mistakesOnWord++;
+            state.hintUsed = true; // any mistake means this wasn't a clean answer
             triggerShake();
 
             // 3 total mistakes → fail
