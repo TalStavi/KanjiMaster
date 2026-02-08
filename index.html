@@ -1600,24 +1600,36 @@
     }
 
     // Pick a word from wordPool using chance-weighted random selection
+    // Avoids picking the same word twice in a row (rerolls up to 5 times)
     function pickWord() {
         if (state.wordPool.size === 0) return null;
-        let total = 0;
-        for (const [, entry] of state.wordPool) {
-            total += entry.chance;
+        const lastKanji = state.currentWord ? state.currentWord.k : null;
+        const canReroll = state.wordPool.size > 1;
+
+        for (let attempt = 0; attempt < 5; attempt++) {
+            let total = 0;
+            for (const [, entry] of state.wordPool) {
+                total += entry.chance;
+            }
+            if (total === 0) {
+                const keys = [...state.wordPool.keys()];
+                const picked = keys[Math.floor(Math.random() * keys.length)];
+                if (canReroll && picked === lastKanji) continue;
+                return state.wordPool.get(picked).word;
+            }
+            let rand = Math.random() * total;
+            let picked = null;
+            for (const [, entry] of state.wordPool) {
+                rand -= entry.chance;
+                if (rand <= 0) { picked = entry.word; break; }
+            }
+            if (!picked) picked = [...state.wordPool.values()].pop().word;
+            if (canReroll && picked.k === lastKanji) continue;
+            return picked;
         }
-        if (total === 0) {
-            // All words have 0 chance (shouldn't happen, but fallback)
-            const keys = [...state.wordPool.keys()];
-            return state.wordPool.get(keys[Math.floor(Math.random() * keys.length)]).word;
-        }
-        let rand = Math.random() * total;
-        for (const [, entry] of state.wordPool) {
-            rand -= entry.chance;
-            if (rand <= 0) return entry.word;
-        }
-        // Fallback: return last word
-        return [...state.wordPool.values()].pop().word;
+        // After 5 attempts, accept whatever we got (edge case: only 1 word)
+        const keys = [...state.wordPool.keys()];
+        return state.wordPool.get(keys[Math.floor(Math.random() * keys.length)]).word;
     }
 
     // =============================================
