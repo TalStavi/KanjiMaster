@@ -1419,6 +1419,8 @@
         seenWords: initialSeen,
         // Whether the current word is a first-encounter (teaching mode)
         isNewWord: false,
+        // How many new (teaching) words shown in a row — cap at 2 then force a test
+        newWordsInRow: 0,
         isTransitioning: false
     };
 
@@ -1576,6 +1578,19 @@
         mainWords.forEach(w => { for (let i = 0; i < mainWeight; i++) weighted.push(w); });
         if (hardWeight > 0) {
             hardWords.forEach(w => { for (let i = 0; i < hardWeight; i++) weighted.push(w); });
+        }
+
+        // After 2 new words in a row, prefer testing on previously-seen words
+        // This prevents endless teaching mode and creates a learn-then-test rhythm
+        const mustTest = state.newWordsInRow >= 2;
+        if (mustTest) {
+            const seenOnly = weighted.filter(w => state.seenWords.has(w.k));
+            // Only restrict if there are seen words available (not blocked by streak)
+            const seenNotInStreak = seenOnly.filter(w => !state.streakWords.has(w.k));
+            if (seenNotInStreak.length > 0) {
+                weighted = seenOnly;
+            }
+            // else: no seen words available to test, allow new words
         }
 
         // Remove words already seen in this streak
@@ -1804,6 +1819,7 @@
         // Mark as seen and persist
         state.seenWords.add(state.currentWord.k);
         saveSeenWords();
+        state.newWordsInRow++;
 
         // Visual feedback
         els.remaining.textContent = '';
@@ -1819,6 +1835,7 @@
 
     function handleSuccess() {
         state.isTransitioning = true;
+        state.newWordsInRow = 0; // reset — player just completed a real test
         playSound('success');
 
         els.remaining.textContent = '';
