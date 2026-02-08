@@ -1397,6 +1397,10 @@
     // =============================================
     // GAME STATE
     // =============================================
+    // Load seen words from localStorage (persists across sessions)
+    const savedSeen = localStorage.getItem('kf_seen');
+    const initialSeen = savedSeen ? new Set(JSON.parse(savedSeen)) : new Set();
+
     const state = {
         currentWord: null,
         inputBuffer: '',
@@ -1411,8 +1415,16 @@
         streakWords: new Set(),
         // Words we failed: kanji -> { word, correct: 0 }. Removed after 3 correct answers.
         failedWords: new Map(),
+        // All words the player has ever seen (persisted in localStorage)
+        seenWords: initialSeen,
+        // Whether the current word is a first-encounter (teaching mode)
+        isNewWord: false,
         isTransitioning: false
     };
+
+    function saveSeenWords() {
+        localStorage.setItem('kf_seen', JSON.stringify([...state.seenWords]));
+    }
 
     // =============================================
     // DOM ELEMENTS
@@ -1626,6 +1638,9 @@
         state.isTransitioning = false;
         state.streakWords.add(word.k);
 
+        // Detect first encounter
+        state.isNewWord = !state.seenWords.has(word.k);
+
         // Update kanji display & show word's actual JLPT level
         els.kanji.textContent = word.k;
         els.badge.textContent = 'N' + word.l;
@@ -1639,21 +1654,36 @@
         // Reset hint
         els.hint.style.opacity = '0';
 
-        // Reset meaning
-        els.meaningBox.classList.remove('animate-slide-up');
-        els.meaningBox.style.opacity = '0';
-        setTimeout(() => {
-            if (!state.isTransitioning) els.meaningText.textContent = '...';
-        }, 300);
-
         els.inputBox.classList.remove('border-red-500', 'border-green-500');
-        els.inputBox.classList.add('border-gray-600');
-        if (state.failedWords.has(word.k)) {
-            els.status.textContent = 'Repeat Word!';
-            els.status.className = 'h-5 text-xs text-orange-400 font-bold';
+
+        if (state.isNewWord) {
+            // === TEACHING MODE ===
+            // Show the reading and meaning immediately so the player can learn
+            els.inputBox.classList.add('border-cyan-500');
+            els.meaningText.textContent = word.m;
+            els.meaningBox.classList.add('animate-slide-up');
+            els.meaningBox.style.opacity = '1';
+            els.hint.textContent = word.r;
+            els.hint.style.opacity = '1';
+            els.status.textContent = 'New Word! Type to learn';
+            els.status.className = 'h-5 text-xs text-cyan-400 font-bold';
         } else {
-            els.status.textContent = 'Type the reading';
-            els.status.className = 'h-5 text-xs text-gray-500 font-medium';
+            // === NORMAL TEST MODE ===
+            els.inputBox.classList.add('border-gray-600');
+            // Reset meaning
+            els.meaningBox.classList.remove('animate-slide-up');
+            els.meaningBox.style.opacity = '0';
+            setTimeout(() => {
+                if (!state.isTransitioning) els.meaningText.textContent = '...';
+            }, 300);
+
+            if (state.failedWords.has(word.k)) {
+                els.status.textContent = 'Repeat Word!';
+                els.status.className = 'h-5 text-xs text-orange-400 font-bold';
+            } else {
+                els.status.textContent = 'Type the reading';
+                els.status.className = 'h-5 text-xs text-gray-500 font-medium';
+            }
         }
 
         // Swap to the other input to reset keyboard prediction
@@ -1688,13 +1718,23 @@
             state.inputBuffer += char;
             state.mistakesOnChar = 0; // reset per-char mistakes
             playSound('type');
-            els.hint.style.opacity = '0';
+            if (!state.isNewWord) els.hint.style.opacity = '0'; // keep hint visible for new words
             renderInput();
 
             if (state.inputBuffer === target) {
-                handleSuccess();
+                if (state.isNewWord) {
+                    handleNewWordComplete();
+                } else {
+                    handleSuccess();
+                }
             }
         } else {
+            // New words: just shake, no fail/hint tracking (answer is visible)
+            if (state.isNewWord) {
+                triggerShake();
+                return;
+            }
+
             state.mistakesOnChar++;
             state.mistakesOnWord++;
             triggerShake();
@@ -1739,7 +1779,8 @@
         els.status.className = 'h-5 text-xs text-red-400 font-bold';
 
         // Add to failed words list (needs 3 correct answers to clear)
-        if (!state.failedWords.has(state.currentWord.k)) {
+        // New words (teaching mode) never enter the failed queue
+        if (!state.isNewWord && !state.failedWords.has(state.currentWord.k)) {
             state.failedWords.set(state.currentWord.k, { word: state.currentWord, correct: 0 });
         }
 
@@ -1756,6 +1797,26 @@
         }, 2500);
     }
 
+    function handleNewWordComplete() {
+        state.isTransitioning = true;
+        playSound('type'); // softer sound for learning
+
+        // Mark as seen and persist
+        state.seenWords.add(state.currentWord.k);
+        saveSeenWords();
+
+        // Visual feedback
+        els.remaining.textContent = '';
+        els.inputBox.classList.remove('border-cyan-500');
+        els.inputBox.classList.add('border-green-500');
+        els.status.textContent = 'Learned!';
+        els.status.className = 'h-5 text-xs text-cyan-400 font-bold';
+
+        // No streak/score change — this was practice
+        // Move to next word after a brief pause
+        setTimeout(() => loadWord(), 1000);
+    }
+
     function handleSuccess() {
         state.isTransitioning = true;
         playSound('success');
@@ -1766,6 +1827,12 @@
         els.meaningText.textContent = state.currentWord.m;
         els.meaningBox.classList.add('animate-slide-up');
         els.meaningBox.style.opacity = '1';
+
+        // Mark as seen (in case it wasn't already)
+        if (!state.seenWords.has(state.currentWord.k)) {
+            state.seenWords.add(state.currentWord.k);
+            saveSeenWords();
+        }
 
         // If this word was in the failed list, track correct answers
         if (state.failedWords.has(state.currentWord.k)) {
