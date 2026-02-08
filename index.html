@@ -1651,10 +1651,15 @@
         state.mistakesOnChar = 0;
         state.mistakesOnWord = 0;
         state.isTransitioning = false;
-        state.streakWords.add(word.k);
 
         // Detect first encounter
         state.isNewWord = !state.seenWords.has(word.k);
+
+        // Only add to streak no-repeat set for real tests, not teaching mode.
+        // This lets a just-taught word immediately appear as a test.
+        if (!state.isNewWord) {
+            state.streakWords.add(word.k);
+        }
 
         // Update kanji display & show word's actual JLPT level
         els.kanji.textContent = word.k;
