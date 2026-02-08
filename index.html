@@ -1397,9 +1397,8 @@
     // =============================================
     // GAME STATE
     // =============================================
-    // Load seen words from localStorage (persists across sessions)
-    const savedSeen = localStorage.getItem('kf_seen');
-    const initialSeen = savedSeen ? new Set(JSON.parse(savedSeen)) : new Set();
+    // Seen words live in memory only — resets each session so returning
+    // players get a fresh learning cycle
 
     const state = {
         currentWord: null,
@@ -1416,7 +1415,7 @@
         // Words we failed: kanji -> { word, correct: 0 }. Removed after 3 correct answers.
         failedWords: new Map(),
         // All words the player has ever seen (persisted in localStorage)
-        seenWords: initialSeen,
+        seenWords: new Set(),
         // Whether the current word is a first-encounter (teaching mode)
         isNewWord: false,
         // How many new (teaching) words shown in a row — cap at 2 then force a test
@@ -1424,9 +1423,6 @@
         isTransitioning: false
     };
 
-    function saveSeenWords() {
-        localStorage.setItem('kf_seen', JSON.stringify([...state.seenWords]));
-    }
 
     // =============================================
     // DOM ELEMENTS
@@ -1823,7 +1819,6 @@
 
         // Mark as seen and persist
         state.seenWords.add(state.currentWord.k);
-        saveSeenWords();
         state.newWordsInRow++;
 
         // Visual feedback
@@ -1853,7 +1848,6 @@
         // Mark as seen (in case it wasn't already)
         if (!state.seenWords.has(state.currentWord.k)) {
             state.seenWords.add(state.currentWord.k);
-            saveSeenWords();
         }
 
         // If this word was in the failed list, track correct answers
