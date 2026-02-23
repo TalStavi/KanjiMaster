@@ -110,7 +110,7 @@
                         <span class="px-2.5 py-1 bg-blue-600 rounded text-xs font-bold text-white shrink-0">N4</span>
                         <span class="text-white font-bold text-sm md:text-base">Start from N4</span>
                     </div>
-                    <span class="text-gray-400 text-xs md:text-sm">I know N5 (251 words)</span>
+                    <span class="text-gray-400 text-xs md:text-sm">I know N5 (259 words)</span>
                 </button>
 
                 <button onclick="startGame(3)" class="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-purple-600/20 border border-purple-600/40 hover:bg-purple-600/30 active:bg-purple-600/40 transition-colors">
@@ -118,7 +118,7 @@
                         <span class="px-2.5 py-1 bg-purple-600 rounded text-xs font-bold text-white shrink-0">N3</span>
                         <span class="text-white font-bold text-sm md:text-base">Start from N3</span>
                     </div>
-                    <span class="text-gray-400 text-xs md:text-sm">I know N5 + N4 (498 words)</span>
+                    <span class="text-gray-400 text-xs md:text-sm">I know N5 + N4 (496 words)</span>
                 </button>
 
                 <button onclick="startGame(2)" class="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-orange-600/20 border border-orange-600/40 hover:bg-orange-600/30 active:bg-orange-600/40 transition-colors">
@@ -166,7 +166,7 @@
         <!-- Kanji Card -->
         <div class="relative w-full max-w-[240px] md:max-w-[300px] aspect-square flex items-center justify-center bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 mb-2 animate-pop shrink-0">
             <div class="absolute inset-0 opacity-10 rounded-2xl bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiZmZmZmZiIvPjwvc3ZnPg==')]"></div>
-            <h1 id="kanji-display" class="kanji-font text-5xl md:text-7xl text-white z-10 select-none text-center px-4 leading-tight"></h1>
+            <h1 id="kanji-display" class="kanji-font text-white z-10 select-none text-center px-4 leading-tight whitespace-nowrap" style="font-size:4rem"></h1>
         </div>
 
         <!-- Hint (between card and input, never clipped) -->
@@ -203,7 +203,7 @@
     // Format: k=Kanji, r=Romaji, m=Meaning, l=Level (5=N5 easiest … 1=N1 hardest)
     // =============================================
     const wordDatabase = [
-        // === JLPT N5 (251 words) ===
+        // === JLPT N5 (259 words) ===
         {k:'危ない',r:'abunai',m:'dangerous',l:5},
         {k:'赤い',r:'akai',m:'red',l:5},
         {k:'明るい',r:'akarui',m:'bright',l:5},
@@ -269,7 +269,7 @@
         {k:'花',r:'hana',m:'flower',l:5},
         {k:'話す',r:'hanasu',m:'to speak',l:5},
         {k:'半分',r:'hanbun',m:'half',l:5},
-        {k:'払う',r:'harau',m:'to pay',l:5},
+        {k:'払う',r:'harau',m:'to pay',l:4},
         {k:'春',r:'haru',m:'spring',l:5},
         {k:'橋',r:'hashi',m:'bridge',l:5},
         {k:'走る',r:'hashiru',m:'to run',l:5},
@@ -294,7 +294,7 @@
         {k:'犬',r:'inu',m:'dog',l:5},
         {k:'入口',r:'iriguchi',m:'entrance',l:5},
         {k:'色',r:'iro',m:'color',l:5},
-        {k:'石',r:'ishi',m:'stone',l:5},
+        {k:'石',r:'ishi',m:'stone',l:4},
         {k:'椅子',r:'isu',m:'chair',l:5},
         {k:'痛い',r:'itai',m:'painful',l:5},
         {k:'時間',r:'jikan',m:'time',l:5},
@@ -305,7 +305,7 @@
         {k:'返す',r:'kaesu',m:'to return',l:5},
         {k:'書く',r:'kaku',m:'to write',l:5},
         {k:'紙',r:'kami',m:'paper',l:5},
-        {k:'悲しい',r:'kanashii',m:'sad',l:5},
+        {k:'悲しい',r:'kanashii',m:'sad',l:4},
         {k:'金',r:'kane',m:'money',l:5},
         {k:'漢字',r:'kanji',m:'Chinese characters',l:5},
         {k:'顔',r:'kao',m:'face',l:5},
@@ -329,7 +329,7 @@
         {k:'北',r:'kita',m:'north',l:5},
         {k:'子供',r:'kodomo',m:'child',l:5},
         {k:'声',r:'koe',m:'voice',l:5},
-        {k:'心',r:'kokoro',m:'heart',l:5},
+        {k:'心',r:'kokoro',m:'heart',l:4},
         {k:'答える',r:'kotaeru',m:'to answer',l:5},
         {k:'事',r:'koto',m:'matter',l:5},
         {k:'言葉',r:'kotoba',m:'word',l:5},
@@ -399,7 +399,7 @@
         {k:'寒い',r:'samui',m:'cold',l:5},
         {k:'狭い',r:'semai',m:'narrow',l:5},
         {k:'先生',r:'sensei',m:'teacher',l:5},
-        {k:'世話',r:'sewa',m:'care; looking after',l:5},
+        {k:'世話',r:'sewa',m:'care; looking after',l:3},
         {k:'写真',r:'shashin',m:'photo',l:5},
         {k:'仕事',r:'shigoto',m:'work',l:5},
         {k:'閉める',r:'shimeru',m:'to close',l:5},
@@ -436,7 +436,7 @@
         {k:'強い',r:'tsuyoi',m:'strong',l:5},
         {k:'上',r:'ue',m:'above',l:5},
         {k:'海',r:'umi',m:'sea',l:5},
-        {k:'嬉しい',r:'ureshii',m:'happy',l:5},
+        {k:'嬉しい',r:'ureshii',m:'happy',l:3},
         {k:'売る',r:'uru',m:'to sell',l:5},
         {k:'歌う',r:'utau',m:'to sing',l:5},
         {k:'若い',r:'wakai',m:'young',l:5},
@@ -455,7 +455,7 @@
         {k:'弱い',r:'yowai',m:'weak',l:5},
         {k:'雪',r:'yuki',m:'snow',l:5},
         {k:'有名',r:'yuumei',m:'famous',l:5},
-        // === JLPT N4 (247 words) ===
+        // === JLPT N4 (237 words) ===
         {k:'上がる',r:'agaru',m:'to go up; to rise',l:4},
         {k:'挨拶',r:'aisatsu',m:'greeting',l:4},
         {k:'案内',r:'annai',m:'guidance',l:4},
@@ -467,7 +467,7 @@
         {k:'謝る',r:'ayamaru',m:'to apologize',l:4},
         {k:'番組',r:'bangumi',m:'TV program',l:4},
         {k:'場所',r:'basho',m:'place',l:4},
-        {k:'便利',r:'benri',m:'convenient',l:4},
+        {k:'便利',r:'benri',m:'convenient',l:5},
         {k:'美術館',r:'bijutsukan',m:'art museum',l:4},
         {k:'文学',r:'bungaku',m:'literature',l:4},
         {k:'文化',r:'bunka',m:'culture',l:4},
@@ -479,11 +479,11 @@
         {k:'地理',r:'chiri',m:'geography',l:4},
         {k:'注意',r:'chuui',m:'caution',l:4},
         {k:'注射',r:'chuusha',m:'injection',l:4},
-        {k:'台所',r:'daidokoro',m:'kitchen',l:4},
+        {k:'台所',r:'daidokoro',m:'kitchen',l:5},
         {k:'大事',r:'daiji',m:'important',l:4},
         {k:'暖房',r:'danbou',m:'heating',l:4},
         {k:'男性',r:'dansei',m:'male',l:4},
-        {k:'電話',r:'denwa',m:'telephone',l:4},
+        {k:'電話',r:'denwa',m:'telephone',l:5},
         {k:'泥棒',r:'dorobou',m:'thief',l:4},
         {k:'道具',r:'dougu',m:'tool',l:4},
         {k:'枝',r:'eda',m:'branch',l:4},
@@ -500,13 +500,13 @@
         {k:'普通',r:'futsuu',m:'normal; usually',l:4},
         {k:'我慢',r:'gaman',m:'patience',l:4},
         {k:'原因',r:'genin',m:'cause',l:4},
-        {k:'玄関',r:'genkan',m:'entrance',l:4},
+        {k:'玄関',r:'genkan',m:'entrance',l:5},
         {k:'現在',r:'genzai',m:'present',l:4},
         {k:'技術',r:'gijutsu',m:'technology',l:4},
         {k:'葉',r:'ha',m:'leaf',l:4},
         {k:'運ぶ',r:'hakobu',m:'to carry',l:4},
         {k:'歯磨き',r:'hamigaki',m:'toothpaste',l:4},
-        {k:'鼻',r:'hana',m:'nose',l:4},
+        {k:'鼻',r:'hana',m:'nose',l:5},
         {k:'花火',r:'hanabi',m:'fireworks',l:4},
         {k:'反対',r:'hantai',m:'opposition',l:4},
         {k:'畑',r:'hatake',m:'field',l:4},
@@ -523,20 +523,20 @@
         {k:'意見',r:'iken',m:'opinion',l:4},
         {k:'居間',r:'ima',m:'living room',l:4},
         {k:'祈る',r:'inoru',m:'to pray',l:4},
-        {k:'忙しい',r:'isogashii',m:'busy',l:4},
+        {k:'忙しい',r:'isogashii',m:'busy',l:5},
         {k:'事故',r:'jiko',m:'accident',l:4},
         {k:'人口',r:'jinkou',m:'population',l:4},
         {k:'地震',r:'jishin',m:'earthquake',l:4},
-        {k:'辞書',r:'jisho',m:'dictionary',l:4},
+        {k:'辞書',r:'jisho',m:'dictionary',l:5},
         {k:'自由',r:'jiyuu',m:'freedom',l:4},
         {k:'女性',r:'josei',m:'female',l:4},
-        {k:'授業',r:'jugyou',m:'class',l:4},
+        {k:'授業',r:'jugyou',m:'class',l:5},
         {k:'壁',r:'kabe',m:'wall',l:4},
         {k:'変える',r:'kaeru',m:'to change something',l:4},
         {k:'科学',r:'kagaku',m:'science',l:4},
         {k:'鏡',r:'kagami',m:'mirror',l:4},
-        {k:'鍵',r:'kagi',m:'key',l:4},
-        {k:'階段',r:'kaidan',m:'stairs',l:4},
+        {k:'鍵',r:'kagi',m:'key',l:5},
+        {k:'階段',r:'kaidan',m:'stairs',l:5},
         {k:'火事',r:'kaji',m:'fire',l:4},
         {k:'過去',r:'kako',m:'past',l:4},
         {k:'感じる',r:'kanjiru',m:'to feel',l:4},
@@ -544,7 +544,7 @@
         {k:'固い',r:'katai',m:'hard',l:4},
         {k:'片付ける',r:'katazukeru',m:'to tidy up',l:4},
         {k:'変わる',r:'kawaru',m:'to change',l:4},
-        {k:'家族',r:'kazoku',m:'family',l:4},
+        {k:'家族',r:'kazoku',m:'family',l:5},
         {k:'経済',r:'keizai',m:'economy',l:4},
         {k:'結果',r:'kekka',m:'result',l:4},
         {k:'健康',r:'kenkou',m:'health',l:4},
@@ -590,7 +590,7 @@
         {k:'毛布',r:'moufu',m:'blanket',l:4},
         {k:'無理',r:'muri',m:'impossible',l:4},
         {k:'虫',r:'mushi',m:'insect',l:4},
-        {k:'難しい',r:'muzukashii',m:'difficult',l:4},
+        {k:'難しい',r:'muzukashii',m:'difficult',l:5},
         {k:'泣く',r:'naku',m:'to cry',l:4},
         {k:'治る',r:'naoru',m:'to heal',l:4},
         {k:'直す',r:'naosu',m:'to fix',l:4},
@@ -611,7 +611,7 @@
         {k:'驚く',r:'odoroku',m:'to be surprised',l:4},
         {k:'怒る',r:'okoru',m:'to get angry',l:4},
         {k:'お祭り',r:'omatsuri',m:'festival',l:4},
-        {k:'面白い',r:'omoshiroi',m:'interesting',l:4},
+        {k:'面白い',r:'omoshiroi',m:'interesting',l:5},
         {k:'押入れ',r:'oshiire',m:'closet',l:4},
         {k:'恐ろしい',r:'osoroshii',m:'frightening',l:4},
         {k:'落とす',r:'otosu',m:'to drop',l:4},
@@ -644,7 +644,7 @@
         {k:'島',r:'shima',m:'island',l:4},
         {k:'信号',r:'shingou',m:'traffic light',l:4},
         {k:'信じる',r:'shinjiru',m:'to believe',l:4},
-        {k:'心配',r:'shinpai',m:'worry',l:4},
+        {k:'心配',r:'shinpai',m:'worry',l:3},
         {k:'親戚',r:'shinseki',m:'relative',l:4},
         {k:'調べる',r:'shiraberu',m:'to investigate',l:4},
         {k:'質問',r:'shitsumon',m:'question',l:4},
@@ -703,7 +703,7 @@
         {k:'指',r:'yubi',m:'finger',l:4},
         {k:'床',r:'yuka',m:'floor',l:4},
         {k:'残念',r:'zannen',m:'regrettable',l:4},
-        // === JLPT N3 (302 words) ===
+        // === JLPT N3 (304 words) ===
         {k:'曖昧',r:'aimai',m:'ambiguous',l:3},
         {k:'相手',r:'aite',m:'partner; opponent',l:3},
         {k:'味',r:'aji',m:'taste',l:3},
@@ -848,7 +848,7 @@
         {k:'首',r:'kubi',m:'neck',l:3},
         {k:'暮らす',r:'kurasu',m:'to live',l:3},
         {k:'腐る',r:'kusaru',m:'to rot',l:3},
-        {k:'薬',r:'kusuri',m:'medicine',l:3},
+        {k:'薬',r:'kusuri',m:'medicine',l:5},
         {k:'許可',r:'kyoka',m:'permission',l:3},
         {k:'教授',r:'kyouju',m:'professor',l:3},
         {k:'共通',r:'kyoutsuu',m:'common; shared',l:3},
@@ -1712,6 +1712,18 @@
     // =============================================
     // GAME LOGIC
     // =============================================
+    function fitKanjiText() {
+        const el = els.kanji;
+        const container = el.parentElement;
+        const maxW = container.clientWidth - 32;
+        let size = window.innerWidth >= 768 ? 72 : 56;
+        el.style.fontSize = size + 'px';
+        while (el.scrollWidth > maxW && size > 20) {
+            size -= 4;
+            el.style.fontSize = size + 'px';
+        }
+    }
+
     function loadWord() {
         let word;
         if (state.teachingQueue.length > 0) {
@@ -1739,6 +1751,7 @@
 
         // Update kanji display & show word's actual JLPT level
         els.kanji.textContent = word.k;
+        fitKanjiText();
         els.badge.textContent = 'N' + word.l;
         const card = els.kanji.parentElement;
         card.classList.remove('animate-pop');
